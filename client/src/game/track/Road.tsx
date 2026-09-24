@@ -65,68 +65,15 @@ function buildRoadGeometry({ ROUTE, BRIDGE, roadHalfWidth, zoneWeights }: Track,
   return geo;
 }
 
-/**
- * F1 halqasi: asfalt, ikki chetida oq chiziq, burilishlarda qizil-oq kerblar (har 2 m da navbatma-navbat).
- * Indekssiz — har bo'lak o'z rangida (kerb chiziqlari keskin).
- */
-function buildCircuitGeometry({ ROUTE, roadHalfWidth }: Track, COLORS: Palette) {
-  const { xs, ys, zs, txs, tzs, count } = ROUTE;
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const asphalt = new Color(COLORS.roadCircuit);
-  const line = new Color(COLORS.kerbWhite);
-  const red = new Color(COLORS.kerbRed);
-  const white = new Color(COLORS.kerbWhite);
-  const KERB = 1.3;
-  const LINE = 0.3;
-
-  /** `i` namunadagi burilish radiusi (±5 namuna oralig'ida yo'nalish o'zgarishi bo'yicha) */
-  const radiusAt = (i: number) => {
-    const a = Math.max(0, i - 5);
-    const b = Math.min(count - 1, i + 5);
-    const da = Math.atan2(txs[b], tzs[b]) - Math.atan2(txs[a], tzs[a]);
-    const d = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
-    return ((b - a) * ROUTE_STEP) / Math.max(d, 1e-6);
-  };
-  const point = (i: number, off: number, up: number) => [xs[i] + tzs[i] * off, ys[i] + LIFT + up, zs[i] - txs[i] * off];
-  /** i → i+1 oralig'ida `from`..`to` yon ofsetlar orasidagi to'rtburchak */
-  const quad = (i: number, from: number, to: number, upFrom: number, upTo: number, col: Color) => {
-    const a = point(i, from, upFrom);
-    const b = point(i, to, upTo);
-    const c = point(i + 1, from, upFrom);
-    const d = point(i + 1, to, upTo);
-    // Normal tepaga: ofset o'sishi chap tomonga, s o'sishi oldinga
-    for (const v of from < to ? [a, c, b, b, c, d] : [a, b, c, b, d, c]) {
-      positions.push(v[0], v[1], v[2]);
-      colors.push(col.r, col.g, col.b);
-    }
-  };
-
-  for (let i = 0; i < count - 1; i++) {
-    const hw = roadHalfWidth(i * ROUTE_STEP);
-    quad(i, -hw + LINE, hw - LINE, 0, 0, asphalt);
-    quad(i, hw - LINE, hw, 0, 0, line);
-    quad(i, -hw, -hw + LINE, 0, 0, line);
-    if (radiusAt(i) < 150) {
-      const col = i % 2 === 0 ? red : white;
-      quad(i, hw, hw + KERB, 0.03, -0.05, col);
-      quad(i, -hw - KERB, -hw, -0.05, 0.03, col);
-    }
-  }
-  const geo = new BufferGeometry();
-  geo.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-  geo.setAttribute('color', new BufferAttribute(new Float32Array(colors), 3));
-  geo.computeVertexNormals();
-  return geo;
-}
-
 export function Road() {
   const track = useTrack();
+  // Plitkali trassada (Gran Pri) yo'l — kit modellari (KitTrack)
+  return track.TILE_SIZE ? null : <RoadMesh track={track} />;
+}
+
+function RoadMesh({ track }: { track: Track }) {
   const palette = usePalette();
-  const geometry = useMemo(
-    () => (track.zoneAt(0) === 'circuit' ? buildCircuitGeometry(track, palette) : buildRoadGeometry(track, palette)),
-    [track, palette],
-  );
+  const geometry = useMemo(() => buildRoadGeometry(track, palette), [track, palette]);
   return (
     <mesh geometry={geometry} receiveShadow>
       {/* polygonOffset — relyef bilan z-fighting bo'lmasligi uchun */}

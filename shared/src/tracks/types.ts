@@ -1,5 +1,6 @@
 import type { Vec3 } from '../types';
 import type { ControlPoint, NearestResult, Route, RouteFrame } from '../route';
+import type { TileLayoutDef, TilePiece } from './tiles';
 
 /** circuit — F1 halqasi: keng asfalt, tekis atrof, kerblar */
 export type ZoneName = 'forest' | 'canyon' | 'ruins' | 'circuit';
@@ -103,8 +104,6 @@ export interface TrackDef {
   fallenPillars: readonly Lying[];
   arches: readonly number[];
   boulderSpawners: readonly { s: number; side: 1 | -1 }[];
-  /** Tribunalar (tomoshabinlar) — yo'l chetida, `side` tomonda, `s`..`s+length` bo'ylab */
-  grandstands?: readonly { s: number; side: 1 | -1; length: number }[];
   /** Aylanali poyga: yopiq halqa va aylanalar soni (berilmasa — startdan marragacha bitta yo'l) */
   laps?: number;
   /** Halqada start/marra chizig'i joyi (`s`, m). Start panjarasi undan orqada */
@@ -113,6 +112,26 @@ export interface TrackDef {
   tunnel: TunnelDef | null;
   narrow: NarrowDef | null;
   lake: LakeDef | null;
+  /** Plitkali trassa (Kenney Racing Kit): marshrut shu plitkalardan quriladi, yo'l — kit modellari */
+  tiles?: TileLayoutDef;
+  /** Kit jihozlari (tribunalar, pit binolari, chodirlar, daraxtlar...) — marshrutga nisbatan joylashadi */
+  props?: readonly PropDef[];
+}
+
+/**
+ * Kit jihozi: `s` nuqtada yo'l markazidan `lateral` m (musbat = chap) yonda. Modelning old tomoni (+z)
+ * `face: 'road'` bo'lsa yo'lga qaraydi, 'along' — yo'l yo'nalishiga; `yaw` — qo'shimcha burilish.
+ */
+export interface PropDef {
+  model: string;
+  s: number;
+  lateral: number;
+  face?: 'road' | 'along';
+  yaw?: number;
+  /** Masshtab ko'paytuvchisi (standart — 1) */
+  scale?: number;
+  /** Ichidan o'tib bo'lmaydi (quti collider) */
+  solid?: boolean;
 }
 
 export interface TerrainSample extends ZoneWeights {
@@ -161,7 +180,10 @@ export interface Track {
   FALLEN_PILLARS: readonly Lying[];
   ARCHES: readonly number[];
   BOULDER_SPAWNERS: readonly { s: number; side: 1 | -1 }[];
-  GRANDSTANDS: readonly { s: number; side: 1 | -1; length: number }[];
+  /** Plitkali trassa: kit plitkalari joylashuvi (oddiy trassada — bo'sh) */
+  TILES: readonly TilePiece[];
+  /** Plitka o'lchami (m); plitkali bo'lmasa 0 */
+  TILE_SIZE: number;
   sampleTerrain(x: number, z: number, out?: TerrainSample): TerrainSample;
   terrainHeight(x: number, z: number): number;
 }

@@ -53,8 +53,9 @@ export function generatePlacements(track: Track): Placement[] {
       const onTop = t.height - t.roadY > 12;
       kind = r < 0.55 ? 'redRock' : onTop && r < 0.7 ? 'broadleaf' : null;
     } else if (t.circuit > 0.5) {
-      // F1 halqasi: keng xavfsizlik zonasi (run-off) bo'sh, daraxtlar faqat uzoqda va siyrak
-      if (clearance < 45) continue;
+      // F1 halqasi: keng xavfsizlik zonasi (run-off) bo'sh, daraxtlar faqat uzoqda va siyrak.
+      // Plitkali trassada yaqin atrof (paddok, tribunalar, kit daraxtlari) — KitTrack'da
+      if (clearance < (track.TILE_SIZE ? 110 : 45)) continue;
       kind = r < 0.3 ? 'broadleaf' : r < 0.5 ? 'pine' : null;
     } else kind = r < 0.25 ? 'broadleaf' : r < 0.45 ? 'rock' : r < 0.52 ? 'pine' : null;
     if (!kind) continue;

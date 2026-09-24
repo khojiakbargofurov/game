@@ -2,6 +2,7 @@ import { WORLD } from '../config';
 import { fbm2D } from '../noise';
 import { buildRoute, nearestOnRouteOf, routeFrameAt, yawOf, type NearestResult, type RouteFrame } from '../route';
 import type { Checkpoint, Pickup, TerrainSample, Track, TrackDef, ZoneName, ZoneWeights } from './types';
+import { TILE_ROAD_HALF, buildTileLayout } from './tiles';
 
 const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -22,6 +23,9 @@ export function createTrack(def: TrackDef): Track {
   const totalS = (localS: number, ref: number) =>
     loop ? localS + Math.round((ref - localS) / ROUTE_LENGTH) * ROUTE_LENGTH : localS;
   const { bridge: BRIDGE, tunnel: TUNNEL, narrow: NARROW, lake: LAKE } = def;
+  // Plitkali trassa: yo'l kengligi kit plitkasidagi asfaltga teng, relyef keng tekis maydon
+  const TILE_SIZE = def.tiles?.size ?? 0;
+  const TILES = def.tiles ? buildTileLayout(def.tiles).pieces : [];
 
   const routeAt = (s: number, out?: RouteFrame) => routeFrameAt(ROUTE, s, out);
   const nearestOnRoute = (x: number, z: number, out?: NearestResult) => nearestOnRouteOf(ROUTE, x, z, out);
@@ -51,6 +55,7 @@ export function createTrack(def: TrackDef): Track {
 
   /** Yo'lning yarim kengligi `s` nuqtada */
   function roadHalfWidth(s: number): number {
+    if (TILE_SIZE) return TILE_ROAD_HALF * TILE_SIZE;
     const w = zoneWeights(s, tmpW);
     let hw =
       w.forest * HALF_WIDTH.forest + w.canyon * HALF_WIDTH.canyon + w.ruins * HALF_WIDTH.ruins + w.circuit * HALF_WIDTH.circuit;
@@ -123,8 +128,9 @@ export function createTrack(def: TrackDef): Track {
       h += w.ruins * ((hills - 0.5) * 6 + (detail - 0.5)) * far;
     }
     if (w.circuit > 0) {
-      // Keng tekis xavfsizlik zonasi (run-off), uzoqda — past do'ngliklar
-      const far = smoothstep(hw + 30, hw + 90, d);
+      // Keng tekis xavfsizlik zonasi (run-off), uzoqda — past do'ngliklar. Plitkali trassada ichki maydon
+      // (paddok, tribunalar) ham tekis bo'lishi kerak — do'ngliklar ancha uzoqdan boshlanadi
+      const far = TILE_SIZE ? smoothstep(hw + 90, hw + 170, d) : smoothstep(hw + 30, hw + 90, d);
       h += w.circuit * ((hills - 0.4) * 8 + (detail - 0.5)) * far;
     }
     if (BRIDGE) h -= BRIDGE.gorgeDepth * gorgeFactor(n.s);
@@ -218,7 +224,8 @@ export function createTrack(def: TrackDef): Track {
     FALLEN_PILLARS: def.fallenPillars,
     ARCHES: def.arches,
     BOULDER_SPAWNERS: def.boulderSpawners,
-    GRANDSTANDS: def.grandstands ?? [],
+    TILES,
+    TILE_SIZE,
     sampleTerrain,
     terrainHeight,
   };
