@@ -68,6 +68,50 @@ function props(): PropDef[] {
   p.push({ model: 'billboardLower', s: 900, lateral: RIGHT * 15, face: 'road', solid: true });
   p.push({ model: 'overhead', s: 910, lateral: 0, face: 'along', scale: 1.5 });
 
+  // ── Burilishlar tashqarisida to'siq devorlari (o'ng burilishda tashqi tomon — chap, chapda — o'ng) ──
+  for (const [from, to, side] of [
+    [224, 304, LEFT],
+    [398, 478, LEFT],
+    [528, 574, LEFT],
+    [822, 868, RIGHT],
+    [962, 1008, RIGHT],
+  ]) {
+    row('barrierWall', from, to, 11, side * (EDGE + 6), { solid: true });
+  }
+  // Qizil-oq bloklar shikanalar oldida
+  for (let s = 1078; s < 1092; s += 3.5) {
+    p.push({ model: (Math.round(s) % 2 ? 'barrierRed' : 'barrierWhite'), s, lateral: RIGHT * (EDGE + 4), face: 'road', solid: true });
+  }
+
+  // ── Shimoliy halqa ichi — paddok: chodirlar, soyabonlar, jamoa uylari, bayroqlar, radar ──
+  row('tent', 318, 382, 16, RIGHT * 26, { solid: true });
+  row('tentRoofDouble', 322, 378, 28, RIGHT * 48, { solid: true });
+  row('tentClosedLong', 590, 650, 30, RIGHT * 30, { solid: true });
+  p.push({ model: 'tentRoof', s: 610, lateral: RIGHT * 52, face: 'road', solid: true });
+  p.push({ model: 'radarEquipment', s: 350, lateral: RIGHT * 66, face: 'road', solid: true });
+  p.push({ model: 'billboardDouble_exclusive', s: 620, lateral: RIGHT * 16, face: 'road', solid: true });
+  for (const [s, model] of [
+    [330, 'flagRed'],
+    [346, 'flagGreen'],
+    [362, 'flagTankco'],
+    [600, 'flagGreen'],
+    [640, 'flagRed'],
+  ] as const) {
+    p.push({ model, s, lateral: RIGHT * 16, face: 'road', scale: 0.6 });
+  }
+
+  // ── Janubi-sharq — jamoalar hududi (start yo'lining o'ng tomonida, pitlar orqasida) ──
+  row('tentClosedLong', 20, 110, 30, RIGHT * 48, { solid: true });
+  row('tentRoofDouble', 30, 100, 35, RIGHT * 74, { solid: true });
+  p.push({ model: 'lightColored', s: 60, lateral: RIGHT * 36, face: 'road' });
+  // Konuslar: pit chiqishi va paddok yo'laklari
+  for (let s = 115; s <= 125; s += 2.5) p.push({ model: 'pylon', s, lateral: RIGHT * (EDGE + 1), face: 'road', scale: 0.5 });
+  for (let s = 588; s <= 660; s += 6) p.push({ model: 'pylon', s, lateral: RIGHT * 42, face: 'road', scale: 0.5 });
+
+  // ── Janubiy halqa ichi: dumaloq tribuna; halqa kirishida rangli ark ──
+  p.push({ model: 'grandStandCoveredRound', s: 905, lateral: LEFT * 36, face: 'road', solid: true });
+  p.push({ model: 'overheadRoundColored', s: 1040, lateral: 0, face: 'along' });
+
   // ── Chiroq ustunlari: to'g'ri yo'llar bo'ylab ikki tomonda (ko'prik yaqinidagilari avtomatik tashlanadi) ──
   for (const [from, to] of [
     [4, 215],

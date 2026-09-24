@@ -90,7 +90,7 @@ function build(track: Track, models: Map<string, Baked>) {
   }
 
   // ── Jihozlar ──
-  const placed: { x: number; z: number; r: number }[] = [];
+  const placed: { x: number; z: number; r: number; solid: boolean }[] = [];
   const near = { s: 0, dist: 0, lateral: 0, roadY: 0 };
   const byPriority = [...(track.def.props ?? [])].sort((a, b) => Number(!!b.solid) - Number(!!a.solid));
   for (const p of byPriority) {
@@ -118,9 +118,12 @@ function build(track: Track, models: Map<string, Baked>) {
     if (!spansRoad) {
       const n = track.nearestOnRoute(x, z, near);
       if (n.dist < track.roadHalfWidth(n.s) + 3 + radius * 0.7) continue;
-      if (!p.solid && placed.some((q) => Math.hypot(q.x - x, q.z - z) < q.r + radius * 0.5)) continue;
+      // Qattiq jihoz (bino, tribuna, to'siq) bilan ustma-ust tushsa tashlanadi. Qatorlar (tribunalar, to'siqlar)
+      // yonma-yon turishi uchun radiuslar yig'indisining faqat bir qismi hisobga olinadi
+      const k = p.solid ? 0.6 : 0.5;
+      if (placed.some((q) => q.solid && Math.hypot(q.x - x, q.z - z) < (q.r + radius) * k)) continue;
     }
-    placed.push({ x, z, r: radius });
+    placed.push({ x, z, r: radius, solid: !!p.solid });
 
     const c = Math.cos(yaw);
     const s = Math.sin(yaw);
