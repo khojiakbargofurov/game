@@ -1,3 +1,5 @@
+import { useCameraStore } from '../store/cameraStore';
+
 /**
  * Klaviatura holati — mutable obyekt, har kadrda o'qiladi (React re-render yo'q).
  * `respawn` — bir martalik hodisa: o'qilgandan keyin `consumeRespawn()` uni tozalaydi.
@@ -8,10 +10,12 @@ export const input = {
   left: false,
   right: false,
   handbrake: false,
+  /** Q — ushlab turilsa orqaga qarash */
+  lookBack: false,
   respawn: false,
 };
 
-type HeldAction = 'forward' | 'backward' | 'left' | 'right' | 'handbrake';
+type HeldAction = 'forward' | 'backward' | 'left' | 'right' | 'handbrake' | 'lookBack';
 
 /** Strelkalar va WASD — bir xil amallar (e.code klaviatura tartibidan qat'i nazar joylashuv bo'yicha) */
 const KEY_MAP: Record<string, HeldAction> = {
@@ -24,6 +28,7 @@ const KEY_MAP: Record<string, HeldAction> = {
   ArrowRight: 'right',
   KeyD: 'right',
   Space: 'handbrake',
+  KeyQ: 'lookBack',
 };
 
 /** Hozir bosib turilgan tugmalar: bitta amalga ikki tugma (↑ va W) — biri qo'yilsa, ikkinchisi ishlayveradi */
@@ -48,6 +53,8 @@ function onKey(e: KeyboardEvent, down: boolean) {
     e.preventDefault(); // sahifa scroll bo'lmasin
   } else if (e.code === 'KeyR' && down && !e.repeat) {
     input.respawn = true;
+  } else if (e.code === 'KeyV' && down && !e.repeat) {
+    useCameraStore.getState().cycle();
   }
 }
 
@@ -56,7 +63,7 @@ const onUp = (e: KeyboardEvent) => onKey(e, false);
 /** Oyna fokusni yo'qotsa tugmalar "yopishib" qolmasin */
 const onBlur = () => {
   held.clear();
-  input.forward = input.backward = input.left = input.right = input.handbrake = false;
+  input.forward = input.backward = input.left = input.right = input.handbrake = input.lookBack = false;
 };
 
 /** Dasturiy respawn so'rovi (masalan, "Qayta o'ynash" tugmasi) */

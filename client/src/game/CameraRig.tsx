@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
-import { ChaseCamera } from './ChaseCamera';
+import { CameraController } from './CameraController';
 
-/** C tugmasi bilan chase kamera va erkin (orbit) kamera orasida almashish — debug uchun */
+/** C tugmasi bilan o'yin kamerasi va erkin (orbit) kamera orasida almashish — debug uchun */
 export function CameraRig() {
   const [free, setFree] = useState(false);
 
@@ -14,5 +14,5 @@ export function CameraRig() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  return free ? <OrbitControls makeDefault /> : <ChaseCamera />;
+  return free ? <OrbitControls makeDefault /> : <CameraController />;
 }

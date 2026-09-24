@@ -6,6 +6,7 @@ import { Minimap } from './Minimap';
 import { MuteButton } from './MuteButton';
 import { ControlsHint } from './ControlsHint';
 import { FinishDeadline } from './FinishDeadline';
+import { CameraToast } from './CameraToast';
 
 /**
  * Poyga HUD'i:
@@ -25,6 +26,7 @@ export function Hud() {
       <SpeedGauge />
       <ControlsHint />
       <FinishDeadline />
+      <CameraToast />
     </div>
   );
 }

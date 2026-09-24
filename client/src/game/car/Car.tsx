@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, useBeforePhysicsStep, type RapierRigidBody } from '@react-three/rapier';
 import { Euler, Quaternion, Vector3, type Group } from 'three';
-import { CAR, WORLD, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
+import { CAMERA, CAR, WORLD, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
 import { attachKeyboard, consumeRespawn, input } from '../../input/keyboard';
 import { useGameStore } from '../../store/gameStore';
 import { controlsEnabled, useNetStore } from '../../store/netStore';
 import { carTarget } from '../carTarget';
+import { addTrauma } from '../../store/cameraStore';
 import { CarBody } from './CarBody';
 import { Wheel } from './Wheel';
 import { useCarModel } from './carGeometry';
@@ -105,6 +106,8 @@ export function Car() {
   const steer = useRef(0);
   const flipTime = useRef(0);
   const lastBoost = useRef(0);
+  /** Oldingi qadamdagi tezlik vektori — urilishni (keskin Δv) aniqlash uchun; null = teleportdan keyin */
+  const prevVel = useRef<Vector3 | null>(null);
 
   useEffect(attachKeyboard, []);
 
@@ -121,7 +124,16 @@ export function Car() {
     if (carTarget.pendingCorrection) {
       applyCorrection(rb, carTarget.pendingCorrection);
       carTarget.pendingCorrection = null;
+      prevVel.current = null;
     }
+
+    // Urilish / qattiq qo'nish: bir qadamda tezlik keskin o'zgarsa — kamera silkinadi
+    const lv = rb.linvel();
+    if (prevVel.current) {
+      const dv = Math.hypot(lv.x - prevVel.current.x, lv.y - prevVel.current.y, lv.z - prevVel.current.z);
+      if (dv > CAMERA.SHAKE.HIT_DV) addTrauma((dv - CAMERA.SHAKE.HIT_DV) * CAMERA.SHAKE.HIT_SCALE);
+      prevVel.current.set(lv.x, lv.y, lv.z);
+    } else prevVel.current = new Vector3(lv.x, lv.y, lv.z);
 
     // Respawn: R tugmasi, jarlikka/dunyodan tushib ketish yoki ag'darilib qolish
     const flipped = uprightness(rb) < 0.3 && Math.abs(speed) < 3;
@@ -131,9 +143,11 @@ export function Car() {
       steer.current = 0;
       flipTime.current = 0;
       carTarget.respawns++;
+      prevVel.current = null;
     }
 
     const boosting = performance.now() < game.boostUntil;
+    carTarget.boosting = boosting;
     // Yangi boost — oldinga bir martalik turtki
     if (game.boostUntil !== lastBoost.current) {
       lastBoost.current = game.boostUntil;

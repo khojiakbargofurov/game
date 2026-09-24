@@ -121,17 +121,51 @@ export const ANTI_CHEAT = {
 
 export const CAMERA = {
   FOV: 60,
-  /** Mashinaga nisbatan kamera ofseti (orqada, tepada) */
-  OFFSET: [0, 3.2, -7.5] as const,
-  /** Kamera qarab turadigan nuqta ofseti (mashina oldida) */
-  LOOK_AHEAD: [0, 1, 4] as const,
-  /** Lerp koeffitsiyenti (1/s) — kattaroq qiymat = qattiqroq kuzatish */
-  FOLLOW_SHARPNESS: 5,
   /** Kamera yo'nalishining mashina burilishiga ergashish tezligi */
   HEADING_SHARPNESS: 4,
   /** Maksimal tezlikda FOV shunchaga kattalashadi (tezlik hissi) */
   SPEED_FOV_BOOST: 10,
+  /** Boost/nitro paytida qo'shimcha FOV */
+  BOOST_FOV: 6,
+
+  /**
+   * Kamera rejimlari (V tugmasi bilan navbatma-navbat). offset/look — [yon, tepa, oldinga] (chase kabi heading bo'yicha;
+   * hood — mashinaning lokal koordinatalarida). fov — asosiy FOV'ga qo'shimcha.
+   */
+  MODES: {
+    chase: { label: 'Orqadan', offset: [0, 3.2, -7.5], look: [0, 1, 4], sharpness: 5, fov: 0 },
+    far: { label: 'Uzoqdan', offset: [0, 5, -12.5], look: [0, 1.2, 5], sharpness: 4, fov: -4 },
+    hood: { label: 'Kapot', offset: [0, 0.85, 1.1], look: [0, 0.6, 12], sharpness: 30, fov: 8 },
+    top: { label: 'Tepadan', offset: [0, 26, -8], look: [0, 0, 5], sharpness: 3, fov: -10 },
+  },
+
+  /** Silkinish (trauma modeli): ofset = trauma² · MAX_OFFSET · shovqin; trauma sekundiga DECAY ga kamayadi */
+  SHAKE: {
+    MAX_OFFSET: 0.45,
+    MAX_ROLL: 0.05,
+    DECAY: 1.6,
+    FREQUENCY: 22,
+    /** Yangi boost / nitro yoqilganda */
+    BOOST: 0.45,
+    /** Urilish: tezlik keskin o'zgarishi (m/s) shu chegaradan oshsa, trauma = (Δv - chegara) · SCALE */
+    HIT_DV: 3.5,
+    HIT_SCALE: 0.09,
+    /** Maksimal tezlikka yaqinlashganda doimiy yengil tebranish (trauma minimum) */
+    SPEED: 0.18,
+  },
+
+  /** Burilishda kamera og'ishi (radian) — yaw burchak tezligi × tezlik ulushiga proporsional */
+  ROLL: { MAX: 0.07, FACTOR: 0.045, SHARPNESS: 4 },
+
+  /** Sichqoncha bilan aylantirish: radian/piksel, chegaralar, qo'yib yuborilganda qaytish tezligi */
+  ORBIT: { SENSITIVITY: 0.006, MAX_PITCH: 0.9, MIN_PITCH: -0.35, RETURN_SHARPNESS: 3 },
+
+  /** Countdown paytidagi intro: mashina atrofida old tomondan orqaga aylanish */
+  INTRO: { RADIUS: 7.5, HEIGHT: 2.2, START_ANGLE: Math.PI * 0.9 },
 } as const;
+
+export type CameraMode = keyof typeof CAMERA.MODES;
+export const CAMERA_MODES = Object.keys(CAMERA.MODES) as CameraMode[];
 
 export const WORLD = {
   /** Deterministik relyef uchun seed — client va server bir xil dunyoni ko'radi */

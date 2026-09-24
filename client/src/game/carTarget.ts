@@ -14,6 +14,8 @@ export const carTarget = {
   velocity: new Vector3(),
   /** Oldinga yo'nalishdagi tezlik (m/s) */
   speed: 0,
+  /** Hozir boost (kristall yoki nitro) ishlayaptimi — kamera FOV'i uchun */
+  boosting: false,
   /** Har respawn'da oshadi — tarmoqqa "teleport bo'ldi" deb xabar berish uchun */
   respawns: 0,
   /** Server anti-cheat tuzatishi: keyingi fizika qadamida mashina shu holatga qo'yiladi */

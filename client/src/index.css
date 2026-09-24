@@ -561,6 +561,24 @@ body,
   opacity: 0;
 }
 
+.camera-toast {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(40, 28, 20, 0.6);
+  font-size: 16px;
+  font-weight: 700;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+
+.camera-toast.faded {
+  opacity: 0;
+}
+
 /* Tor ekranlar: mini-xarita va eslatma kichrayadi */
 @media (max-width: 720px) {
   .minimap {
