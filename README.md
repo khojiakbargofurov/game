@@ -135,9 +135,9 @@ masofa (`s`, metr) orqali beriladi. Relyef (`shared/src/terrain.ts`) marshrutga 
 
 | Tugma | Amal |
 | --- | --- |
-| ↑ | Gaz |
-| ↓ | Tormoz / orqaga |
-| ← → | Rul |
+| ↑ yoki W | Gaz |
+| ↓ yoki S | Tormoz / orqaga |
+| ← → yoki A D | Rul |
 | Space | Qo'l tormozi (drift) |
 | R | Oxirgi checkpointga qaytish |
 | M | Ovozni yoqish/o'chirish |

@@ -15,7 +15,7 @@ export function ControlsHint() {
   }, [startedAt]);
   return (
     <div className={`hint ${visible ? '' : 'faded'}`}>
-      ↑↓ gaz/tormoz · ←→ rul · Space drift · R checkpointga qaytish · M ovoz · C kamera
+      ↑↓ / W S gaz/tormoz · ←→ / A D rul · Space drift · R checkpointga qaytish · M ovoz · C kamera
     </div>
   );
 }
