@@ -40,7 +40,7 @@ export interface WheelCommand {
 
 /**
  * Drive buyrug'ini g'ildiraklarga qo'llash (qo'l tormozi: orqa g'ildiraklar qulf + kam yon ishqalanish → drift).
- * Ishqalanish har qadamda qo'llanadi — ob-havo/upgrade o'zgarsa controller qayta yaratilmaydi.
+ * Ishqalanish va suspensiya har qadamda qo'llanadi — ob-havo/upgrade o'zgarsa controller qayta yaratilmaydi.
  */
 export function applyDriveCommand(v: VehicleController, cmd: WheelCommand, stats: CarStats = BASE_STATS) {
   for (let i = 0; i < WHEEL_COUNT; i++) {
@@ -51,5 +51,8 @@ export function applyDriveCommand(v: VehicleController, cmd: WheelCommand, stats
     v.setWheelBrake(i, rearHandbrake ? stats.handbrakeForce : cmd.brake);
     v.setWheelFrictionSlip(i, stats.frictionSlip);
     v.setWheelSideFrictionStiffness(i, rearHandbrake ? stats.driftSideFriction : stats.sideFriction);
+    v.setWheelSuspensionStiffness(i, stats.suspensionStiffness);
+    v.setWheelSuspensionCompression(i, stats.suspensionCompression);
+    v.setWheelSuspensionRelaxation(i, stats.suspensionRelaxation);
   }
 }

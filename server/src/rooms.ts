@@ -1,4 +1,5 @@
 import {
+  NO_TUNE,
   NO_UPGRADES,
   ROOM,
   getTrack,
@@ -10,15 +11,21 @@ import {
   type RoomInfo,
   type RoomPhase,
   type Track,
+  type TuneSetup,
   type UpgradeLevels,
 } from '@game/shared';
 
-export interface ServerPlayer {
-  id: string;
-  name: string;
+/** Tekshirilgan mashina va sozlamalar (validation.ts parseLoadout) */
+export interface Loadout {
   car: CarId;
   /** Klient e'lon qilgan upgrade darajalari (0..MAX gacha cheklangan) */
   upgrades: UpgradeLevels;
+  tune: TuneSetup;
+}
+
+export interface ServerPlayer extends Loadout {
+  id: string;
+  name: string;
   slot: number;
   /** Oxirgi qabul qilingan holat va qabul qilingan vaqti (server ms) */
   last: { state: NetState; at: number } | null;
@@ -71,7 +78,7 @@ export class RoomManager {
   /** socket.id → xona kodi */
   private membership = new Map<string, string>();
 
-  create(playerId: string, name: string, car: CarId, upgrades: UpgradeLevels, settings: RaceSettings): Room {
+  create(playerId: string, name: string, loadout: Loadout, settings: RaceSettings): Room {
     let code = randomCode();
     while (this.rooms.has(code)) code = randomCode();
     const room: Room = {
@@ -85,25 +92,24 @@ export class RoomManager {
       timers: [],
     };
     this.rooms.set(code, room);
-    this.addPlayer(room, playerId, name, car, upgrades);
+    this.addPlayer(room, playerId, name, loadout);
     return room;
   }
 
-  join(code: string, playerId: string, name: string, car: CarId, upgrades: UpgradeLevels): Room | JoinError {
+  join(code: string, playerId: string, name: string, loadout: Loadout): Room | JoinError {
     const room = this.rooms.get(code);
     if (!room) return 'not_found';
     if (room.phase !== 'lobby') return 'in_progress';
     if (room.players.size >= ROOM.MAX_PLAYERS) return 'full';
-    this.addPlayer(room, playerId, name, car, upgrades);
+    this.addPlayer(room, playerId, name, loadout);
     return room;
   }
 
-  private addPlayer(room: Room, id: string, name: string, car: CarId, upgrades: UpgradeLevels) {
+  private addPlayer(room: Room, id: string, name: string, loadout: Loadout) {
     room.players.set(id, {
+      ...loadout,
       id,
       name,
-      car,
-      upgrades,
       slot: freeSlot(room),
       last: null,
       nextCheckpoint: 0,
@@ -189,6 +195,10 @@ export const trackOf = (room: Room): Track => getTrack(room.settings.trackId);
 export const effectiveUpgrades = (room: Room, p: ServerPlayer): UpgradeLevels =>
   room.settings.upgradesEnabled ? p.upgrades : NO_UPGRADES;
 
+/** Sozlash ham upgrade'lar bilan birga o'chiriladi (hamma bir xil mashinada) */
+export const effectiveTune = (room: Room, p: ServerPlayer): TuneSetup =>
+  room.settings.upgradesEnabled ? p.tune : NO_TUNE;
+
 export function roomInfo(room: Room): RoomInfo {
   const players: PlayerInfo[] = [...room.players.values()]
     .sort((a, b) => a.slot - b.slot)
@@ -197,6 +207,7 @@ export function roomInfo(room: Room): RoomInfo {
       name: p.name,
       car: p.car,
       upgrades: effectiveUpgrades(room, p),
+      tune: effectiveTune(room, p),
       slot: p.slot,
       color: ROOM.PLAYER_COLORS[p.slot % ROOM.PLAYER_COLORS.length],
       isHost: p.id === room.hostId,

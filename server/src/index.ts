@@ -7,13 +7,12 @@ import {
   NET,
   RACE,
   ROOM,
-  sanitizeUpgrades,
   type ClientToServerEvents,
   type RaceSettings,
   type ServerToClientEvents,
 } from '@game/shared';
-import { RoomManager, effectiveUpgrades, roomInfo, snapshotOf, trackOf, type Room } from './rooms';
-import { normalizeCode, parseCar, parseNetState, parseSettings, sanitizeName } from './validation';
+import { RoomManager, effectiveTune, effectiveUpgrades, roomInfo, snapshotOf, trackOf, type Room } from './rooms';
+import { normalizeCode, parseLoadout, parseNetState, parseSettings, sanitizeName } from './validation';
 import { validateMove } from './antiCheat';
 import { collectCoin, passCheckpoint, results, shouldEnd, standings } from './race';
 
@@ -118,7 +117,7 @@ io.on('connection', (socket: GameSocket) => {
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       leaveRoom(socket);
       const settings = parseSettings(payload?.settings, DEFAULT_SETTINGS);
-      const room = rooms.create(socket.id, name, parseCar(payload?.car), sanitizeUpgrades(payload?.upgrades), settings);
+      const room = rooms.create(socket.id, name, parseLoadout(payload), settings);
       socket.join(room.code);
       console.log(`[room] ${room.code} yaratildi (${name})`);
       ack({ ok: true, data: roomInfo(room) });
@@ -134,7 +133,7 @@ io.on('connection', (socket: GameSocket) => {
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       if (!code) return ack({ ok: false, error: `Kod ${ROOM.CODE_LENGTH} belgidan iborat bo'lishi kerak` });
       leaveRoom(socket);
-      const result = rooms.join(code, socket.id, name, parseCar(payload?.car), sanitizeUpgrades(payload?.upgrades));
+      const result = rooms.join(code, socket.id, name, parseLoadout(payload));
       if (typeof result === 'string') return ack({ ok: false, error: JOIN_ERRORS[result] });
       socket.join(code);
       console.log(`[room] ${code}: ${name} qo'shildi (${result.players.size} o'yinchi)`);
@@ -241,6 +240,7 @@ io.on('connection', (socket: GameSocket) => {
         player.slot,
         player.nextCheckpoint - 1,
         effectiveUpgrades(room, player),
+        effectiveTune(room, player),
       );
       if (!check.ok) {
         // Rad etildi — o'yinchi oxirgi to'g'ri holatga qaytariladi

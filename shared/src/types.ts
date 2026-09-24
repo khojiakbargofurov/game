@@ -1,7 +1,7 @@
 import type { CarId } from './config';
 import type { Season, Weather } from './environment';
 import type { TrackId } from './tracks';
-import type { UpgradeLevels } from './upgrades';
+import type { TuneSetup, UpgradeLevels } from './upgrades';
 
 export type Vec3 = [number, number, number];
 /** Kvaternion [x, y, z, w] */
@@ -31,6 +31,8 @@ export interface PlayerInfo {
   car: CarId;
   /** Poygada amal qiladigan upgrade darajalari (xonada upgrade o'chirilgan bo'lsa — hammasi 0) */
   upgrades: UpgradeLevels;
+  /** Sozlash slayderlari (upgrade'lar o'chirilgan xonada — zavod sozlamasi) */
+  tune: TuneSetup;
   isHost: boolean;
   /** Start panjarasidagi joy (0..MAX_PLAYERS-1) */
   slot: number;

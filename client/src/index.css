@@ -862,6 +862,38 @@ body,
   font-size: 14px;
 }
 
+.panel.garage .segmented button {
+  margin-top: 0;
+}
+
+.tunes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tune {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #efe0cc;
+  text-align: left;
+}
+
+.tune input[type='range'] {
+  width: 100%;
+  accent-color: #e0572b;
+}
+
+.tune-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #8a6a50;
+}
+
 .upgrade-toggle {
   margin-top: 4px;
 }

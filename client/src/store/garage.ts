@@ -1,12 +1,16 @@
 import { create } from 'zustand';
 import {
   MAX_UPGRADE_LEVEL,
+  NO_TUNE,
   NO_UPGRADES,
   UPGRADE_COSTS,
   WEATHER_FX,
   carStats,
+  sanitizeTune,
   sanitizeUpgrades,
   type CarStats,
+  type TuneId,
+  type TuneSetup,
   type UpgradeId,
   type UpgradeLevels,
 } from '@game/shared';
@@ -18,21 +22,22 @@ const KEY = 'adventure-racer:garage';
 interface Saved {
   wallet: number;
   levels: UpgradeLevels;
+  tune: TuneSetup;
 }
 
 function load(): Saved {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>;
     const wallet = typeof raw.wallet === 'number' && Number.isFinite(raw.wallet) ? Math.max(0, Math.floor(raw.wallet)) : 0;
-    return { wallet, levels: sanitizeUpgrades(raw.levels) };
+    return { wallet, levels: sanitizeUpgrades(raw.levels), tune: sanitizeTune(raw.tune) };
   } catch {
-    return { wallet: 0, levels: { ...NO_UPGRADES } };
+    return { wallet: 0, levels: { ...NO_UPGRADES }, tune: { ...NO_TUNE } };
   }
 }
 
-function save({ wallet, levels }: Saved) {
+function save({ wallet, levels, tune }: Saved) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ wallet, levels }));
+    localStorage.setItem(KEY, JSON.stringify({ wallet, levels, tune }));
   } catch {
     // xotira yopiq bo'lsa ham shu seansda ishlaydi
   }
@@ -46,6 +51,8 @@ interface GarageState extends Saved {
   deposit: (coins: number) => void;
   /** Upgrade sotib olish; tanga yetmasa yoki maksimal darajada — false */
   buy: (id: UpgradeId) => boolean;
+  /** Sozlash slayderi (bepul) */
+  setTune: (id: TuneId, value: number) => void;
 }
 
 /** Garaj: tanga hamyoni va upgrade darajalari (brauzerda saqlanadi) */
@@ -64,16 +71,28 @@ export const useGarage = create<GarageState>((set, get) => ({
     save(get());
     return true;
   },
+  setTune: (id, value) => {
+    set((s) => ({ tune: sanitizeTune({ ...s.tune, [id]: value }) }));
+    save(get());
+  },
 }));
 
-/** Poygada amal qiladigan darajalar: onlayn — server tasdiqlagani (host o'chirgan bo'lsa 0), yakka — garajdagi */
-export function ownUpgrades(): UpgradeLevels {
+/**
+ * Poygada amal qiladigan darajalar va sozlash: onlayn — server tasdiqlagani (host o'chirgan bo'lsa 0),
+ * yakka — garajdagi
+ */
+export function ownUpgrades(): { levels: UpgradeLevels; tune: TuneSetup } {
   const { mode, room, selfId } = useNetStore.getState();
-  if (mode === 'online') return room?.players.find((p) => p.id === selfId)?.upgrades ?? NO_UPGRADES;
-  return useGarage.getState().levels;
+  if (mode === 'online') {
+    const me = room?.players.find((p) => p.id === selfId);
+    return { levels: me?.upgrades ?? NO_UPGRADES, tune: me?.tune ?? NO_TUNE };
+  }
+  const { levels, tune } = useGarage.getState();
+  return { levels, tune };
 }
 
-/** O'z mashinamizning fizik parametrlari: upgrade'lar + ob-havo tutishi */
+/** O'z mashinamizning fizik parametrlari: upgrade'lar + ob-havo tutishi + sozlash */
 export function ownCarStats(): CarStats {
-  return carStats(ownUpgrades(), WEATHER_FX[activeSettings().weather].grip);
+  const { levels, tune } = ownUpgrades();
+  return carStats(levels, WEATHER_FX[activeSettings().weather].grip, tune);
 }

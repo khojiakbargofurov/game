@@ -5,12 +5,15 @@ import {
   isSeason,
   isTrackId,
   isWeather,
+  sanitizeTune,
+  sanitizeUpgrades,
   type CarId,
   type NetState,
   type RaceSettings,
   type Quat,
   type Vec3,
 } from '@game/shared';
+import type { Loadout } from './rooms';
 
 /** Klientdan kelgan ma'lumotlarga ishonmaymiz — har bir payload tekshiriladi */
 
@@ -53,6 +56,12 @@ export function normalizeCode(raw: unknown): string | null {
 /** Noma'lum yoki yo'q mashina — standart mashina (eski klientlar ham ishlayveradi) */
 export function parseCar(raw: unknown): CarId {
   return isCarId(raw) ? raw : DEFAULT_CAR;
+}
+
+/** Mashina, upgrade'lar, sozlash — hammasi tozalanadi (eski klientlarda yo'q maydonlar — standart qiymat) */
+export function parseLoadout(raw: unknown): Loadout {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return { car: parseCar(src.car), upgrades: sanitizeUpgrades(src.upgrades), tune: sanitizeTune(src.tune) };
 }
 
 /** Faqat to'g'ri maydonlar `base` ustidan yoziladi — noma'lum qiymatlar e'tiborsiz qoldiriladi */

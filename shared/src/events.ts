@@ -1,6 +1,13 @@
 import type { CarId } from './config';
 import type { NetState, PlayerState, RaceResult, RaceSettings, RoomInfo } from './types';
-import type { UpgradeLevels } from './upgrades';
+import type { TuneSetup, UpgradeLevels } from './upgrades';
+
+/** O'yinchi xonaga olib keladigan mashina va uning sozlamalari (server hammasini tekshiradi) */
+export interface LoadoutPayload {
+  car?: CarId;
+  upgrades?: UpgradeLevels;
+  tune?: TuneSetup;
+}
 
 /**
  * Socket.io event nomlari va payload tiplari.
@@ -15,10 +22,10 @@ export type Ack<T> = (res: AckResult<T>) => void;
 
 export interface ClientToServerEvents {
   'room:create': (
-    payload: { name: string; car?: CarId; upgrades?: UpgradeLevels; settings?: Partial<RaceSettings> },
+    payload: LoadoutPayload & { name: string; settings?: Partial<RaceSettings> },
     ack: Ack<RoomInfo>,
   ) => void;
-  'room:join': (payload: { code: string; name: string; car?: CarId; upgrades?: UpgradeLevels }, ack: Ack<RoomInfo>) => void;
+  'room:join': (payload: LoadoutPayload & { code: string; name: string }, ack: Ack<RoomInfo>) => void;
   'room:leave': () => void;
   /** Faqat xona egasi, faqat lobby'da: trassa, fasl, ob-havo, upgrade'lar yoqilganmi */
   'room:settings': (payload: Partial<RaceSettings>, ack: Ack<null>) => void;

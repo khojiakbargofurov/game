@@ -1,7 +1,7 @@
 /**
  * Headless simulyatsiyalar uchun umumiy dunyo: relyef trimesh + mashina (o'yindagi bilan bir xil).
  * Argumentlar: [trackId] [weather] [max], masalan `npm run sim:route -w client -- mountain rain max`
- * (`max` — barcha upgrade'lar 5-darajada).
+ * (`max` — barcha upgrade'lar 5-darajada). 4-argument — sozlash: `speed` (hammasi +1) yoki `grip` (hammasi -1).
  */
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PlaneGeometry } from 'three';
@@ -20,16 +20,17 @@ import {
 } from '@game/shared';
 import { createVehicleController } from '../src/game/car/vehicleSetup';
 
-const [trackArg, weatherArg, levelArg] = process.argv.slice(2);
+const [trackArg, weatherArg, levelArg, tuneArg] = process.argv.slice(2);
 export const track = getTrack(isTrackId(trackArg) ? trackArg : DEFAULT_TRACK);
 export const weather = isWeather(weatherArg) ? weatherArg : DEFAULT_WEATHER;
 const L = levelArg === 'max' ? MAX_UPGRADE_LEVEL : 0;
 export const stats = carStats(
   upgradesAt(L),
   WEATHER_FX[weather].grip,
+  tuneArg === 'speed' ? { balance: 1, suspension: 1, drift: 1 } : tuneArg === 'grip' ? { balance: -1, suspension: -1, drift: -1 } : undefined,
 );
 const { START, terrainHeight } = track;
-console.log(`Trassa: ${track.def.name} (${track.ROUTE_LENGTH} m), ob-havo: ${weather}, upgrade: ${L}`);
+console.log(`Trassa: ${track.def.name} (${track.ROUTE_LENGTH} m), ob-havo: ${weather}, upgrade: ${L}, sozlash: ${tuneArg ?? '0'}`);
 
 await RAPIER.init();
 export const DT = 1 / 60;

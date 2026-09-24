@@ -1,8 +1,8 @@
-import { ANTI_CHEAT, CAR, carStats, type NetState, type Track, type UpgradeLevels, type Vec3 } from '@game/shared';
+import { ANTI_CHEAT, CAR, carStats, type NetState, type Track, type TuneSetup, type UpgradeLevels, type Vec3 } from '@game/shared';
 
-/** Server qabul qiladigan maksimal gorizontal tezlik (m/s) — o'yinchining dvigatel darajasiga qarab */
-export const maxAllowedSpeed = (levels: UpgradeLevels) =>
-  carStats(levels).maxSpeed * CAR.BOOST_MULTIPLIER * ANTI_CHEAT.SPEED_TOLERANCE;
+/** Server qabul qiladigan maksimal gorizontal tezlik (m/s) — o'yinchining dvigatel darajasi va balans sozlamasiga qarab */
+export const maxAllowedSpeed = (levels: UpgradeLevels, tune: TuneSetup) =>
+  carStats(levels, 1, tune).maxSpeed * CAR.BOOST_MULTIPLIER * ANTI_CHEAT.SPEED_TOLERANCE;
 
 const horizontalDistance = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[2] - b[2]);
 
@@ -22,8 +22,9 @@ export function validateMove(
   /** Oxirgi o'tilgan checkpoint indeksi (-1 = hali hech biri) */
   lastCheckpoint: number,
   levels: UpgradeLevels,
+  tune: TuneSetup,
 ): { ok: true } | { ok: false; reason: string } {
-  const maxSpeed = maxAllowedSpeed(levels);
+  const maxSpeed = maxAllowedSpeed(levels, tune);
   const declaredSpeed = Math.hypot(next.velocity[0], next.velocity[2]);
   if (declaredSpeed > maxSpeed) return { ok: false, reason: `tezlik ${declaredSpeed.toFixed(1)} m/s` };
 

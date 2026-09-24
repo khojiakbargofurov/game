@@ -1,4 +1,4 @@
-import { ROOM, type AckResult, type RaceSettings, type RoomInfo, type SpawnPoint } from '@game/shared';
+import { ROOM, type AckResult, type LoadoutPayload, type RaceSettings, type RoomInfo, type SpawnPoint } from '@game/shared';
 import { requestRespawn } from '../input/keyboard';
 import { useGameStore } from '../store/gameStore';
 import { useCarChoice } from '../store/carChoice';
@@ -71,11 +71,15 @@ function onRoomJoined(res: AckResult<RoomInfo>, name: string) {
   useNetStore.setState({ room: res.data, screen: 'room', mode: 'online', error: null, results: null });
 }
 
+/** Xonaga olib boriladigan mashina: tanlov, upgrade'lar, sozlash (server tekshiradi) */
+function loadout(): LoadoutPayload {
+  const { levels, tune } = useGarage.getState();
+  return { car: useCarChoice.getState().car, upgrades: levels, tune };
+}
+
 export function createRoom(name: string) {
   useNetStore.setState({ busy: true, error: null });
-  const { car } = useCarChoice.getState();
-  const upgrades = useGarage.getState().levels;
-  socket.emit('room:create', { name, car, upgrades, settings: menuSettings() }, (res) => onRoomJoined(res, name));
+  socket.emit('room:create', { name, ...loadout(), settings: menuSettings() }, (res) => onRoomJoined(res, name));
 }
 
 /** Menyuda tanlangan sharoit — yangi xona shu bilan yaratiladi */
@@ -93,9 +97,7 @@ export function updateRoomSettings(patch: Partial<RaceSettings>) {
 
 export function joinRoom(code: string, name: string) {
   useNetStore.setState({ busy: true, error: null });
-  const { car } = useCarChoice.getState();
-  const upgrades = useGarage.getState().levels;
-  socket.emit('room:join', { code, name, car, upgrades }, (res) => onRoomJoined(res, name));
+  socket.emit('room:join', { code, name, ...loadout() }, (res) => onRoomJoined(res, name));
 }
 
 export function startOnlineRace() {
