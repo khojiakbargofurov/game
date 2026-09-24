@@ -1,0 +1,22 @@
+{
+  "name": "@game/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "bot": "tsx scripts/bot.ts",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@game/shared": "*",
+    "socket.io": "^4.8.1",
+    "tsx": "^4.19.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "socket.io-client": "^4.8.3"
+  }
+}

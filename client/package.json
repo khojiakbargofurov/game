@@ -1,0 +1,36 @@
+{
+  "name": "@game/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "sim": "tsx scripts/sim-car.ts",
+    "sim:route": "tsx scripts/sim-route.ts",
+    "test:interp": "tsx scripts/test-interp.ts",
+    "profile:load": "tsx scripts/profile-load.ts",
+    "sim:stress": "tsx scripts/sim-stress.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.2",
+    "@game/shared": "*",
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.1.0",
+    "@react-three/rapier": "^2.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.176.0",
+    "zustand": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "^0.176.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite": "^6.3.5"
+  }
+}
