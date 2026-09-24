@@ -6,6 +6,7 @@ import { useNetStore } from '../store/netStore';
 import { activeTrack, useMenuChoice } from '../store/raceSettings';
 import { ownCarStats, useGarage } from '../store/garage';
 import { resetPickups } from '../store/pickups';
+import { clearBots, spawnBots } from '../store/bots';
 import { whenWorldReady } from '../store/loadState';
 import { observeServerTime, resetServerClock, serverNow } from './serverClock';
 import { bufferFor, remoteBuffers } from './snapshotBuffer';
@@ -48,9 +49,13 @@ function resetRace(spawn: SpawnPoint) {
 
 let cancelSoloStart: (() => void) | null = null;
 
-/** Yakka rejim: start joyiga qo'yish va mahalliy 3-2-1 (dunyo yuklangandan keyin) */
+/** Yakka rejim: start joyiga qo'yish (botlar bo'lsa — start panjarasi), mahalliy 3-2-1 (dunyo yuklangandan keyin) */
 export function startSolo() {
-  resetRace(activeTrack().START);
+  const { bots, difficulty } = useMenuChoice.getState();
+  const track = activeTrack();
+  if (bots > 0) spawnBots(bots, difficulty, track);
+  else clearBots();
+  resetRace(bots > 0 ? track.gridSpawn(0) : track.START);
   useNetStore.setState({ screen: 'race', mode: 'solo', error: null, results: null, standings: [] });
   cancelSoloStart?.();
   cancelSoloStart = whenWorldReady(() => {
@@ -68,6 +73,7 @@ function onRoomJoined(res: AckResult<RoomInfo>, name: string) {
     return;
   }
   saveName(name);
+  clearBots();
   useNetStore.setState({ room: res.data, screen: 'room', mode: 'online', error: null, results: null });
 }
 
@@ -118,6 +124,7 @@ export function resetRoom(start: boolean) {
 export function backToMenu() {
   if (useNetStore.getState().room) socket.emit('room:leave');
   remoteBuffers.clear();
+  clearBots();
   resetRace(activeTrack().START);
   useNetStore.setState({ screen: 'menu', room: null, error: null, results: null, standings: [], finishDeadline: null });
 }

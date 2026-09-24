@@ -3,7 +3,8 @@ import { CARS, ROOM } from '@game/shared';
 import { createRoom, joinRoom, loadName, startSolo } from '../net/session';
 import { useCarChoice } from '../store/carChoice';
 import { useGarage } from '../store/garage';
-import { useMenuChoice } from '../store/raceSettings';
+import { MAX_BOTS, useMenuChoice } from '../store/raceSettings';
+import { DIFFICULTIES } from '../game/bots/botDriver';
 import { Garage } from './Garage';
 import { CarIcon } from './CarIcon';
 import { RaceSettingsPicker } from './RaceSettingsPicker';
@@ -54,8 +55,10 @@ export function Menu() {
             🔧 Garaj · 🪙 {wallet}
           </button>
 
+          <div className="divider">yakka</div>
+          <BotPicker />
           <button className="primary" onClick={startSolo}>
-            Yakka o'ynash
+            Yakka o'ynash{choice.bots > 0 && ` · ${choice.bots} bot bilan`}
           </button>
 
           <div className="divider">onlayn</div>
@@ -115,6 +118,42 @@ function CarPicker() {
           <span>{c.label}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Yakka rejim: botlar soni (0..MAX_BOTS) va qiyinligi */
+function BotPicker() {
+  const bots = useMenuChoice((s) => s.bots);
+  const difficulty = useMenuChoice((s) => s.difficulty);
+  const set = useMenuChoice((s) => s.set);
+  return (
+    <div className="bot-picker">
+      <div className="stepper" aria-label="Botlar soni">
+        <button onClick={() => set({ bots: Math.max(0, bots - 1) })} disabled={bots === 0} aria-label="Kamroq bot">
+          −
+        </button>
+        <span>
+          🤖 <strong>{bots}</strong> bot
+        </span>
+        <button onClick={() => set({ bots: Math.min(MAX_BOTS, bots + 1) })} disabled={bots === MAX_BOTS} aria-label="Ko'proq bot">
+          +
+        </button>
+      </div>
+      <div className="segmented" role="radiogroup" aria-label="Botlar qiyinligi">
+        {DIFFICULTIES.map((d) => (
+          <button
+            key={d.id}
+            role="radio"
+            aria-checked={d.id === difficulty}
+            className={d.id === difficulty ? 'active' : undefined}
+            disabled={bots === 0}
+            onClick={() => set({ difficulty: d.id })}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

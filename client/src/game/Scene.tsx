@@ -24,6 +24,7 @@ import { Coins } from './track/Coins';
 import { Boosts } from './track/Boosts';
 import { RaceLogic } from './track/RaceLogic';
 import { RemoteCars } from './remote/RemoteCars';
+import { Bots } from './bots/BotCar';
 import { NetSync } from './remote/NetSync';
 import { EngineAudio } from '../audio/EngineAudio';
 import { PerfStats } from './PerfStats';
@@ -93,6 +94,7 @@ export default function Scene() {
           <Boulders />
           <Car />
           <RemoteCars />
+          <Bots />
           <WorldReady />
         </Physics>
       </Suspense>

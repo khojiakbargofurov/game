@@ -964,6 +964,38 @@ body,
   background: repeating-linear-gradient(45deg, #d9c4a8 0 4px, #f4e6d2 4px 8px);
 }
 
+.bot-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #efe0cc;
+}
+
+.panel .stepper button,
+.panel .bot-picker .segmented button {
+  margin-top: 0;
+}
+
+.panel .stepper button {
+  width: 36px;
+  padding: 6px 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bot-picker .segmented button:disabled {
+  opacity: 0.45;
+}
+
 .upgrade-toggle {
   margin-top: 4px;
 }

@@ -47,53 +47,57 @@ export const terrainCollider = world.createCollider(
 );
 
 const [HX, HY, HZ] = CAR.CHASSIS_HALF_EXTENTS;
-export const body = world.createRigidBody(
-  RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(START.position[0], START.position[1], START.position[2])
-    .setAngularDamping(CAR.ANGULAR_DAMPING)
-    .setCanSleep(false),
-);
-export const chassisCollider = world.createCollider(
-  RAPIER.ColliderDesc.cuboid(HX, HY, HZ)
-    .setFriction(0.3)
-    .setMassProperties(
-      CAR.MASS,
-      { x: 0, y: CAR.CENTER_OF_MASS_Y, z: 0 },
-      {
-        x: (CAR.MASS / 12) * ((2 * HY) ** 2 + (2 * HZ) ** 2),
-        y: (CAR.MASS / 12) * ((2 * HX) ** 2 + (2 * HZ) ** 2),
-        z: (CAR.MASS / 12) * ((2 * HX) ** 2 + (2 * HY) ** 2),
-      },
-      { x: 0, y: 0, z: 0, w: 1 },
-    ),
-  body,
-);
-export const vehicle = createVehicleController(world, body, stats);
 
+/** O'yindagi bilan bir xil mashina: dinamik korpus + collider + vehicle controller */
+export function createCar(x: number, y: number, z: number, carStats = stats) {
+  const body = world.createRigidBody(
+    RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z).setAngularDamping(CAR.ANGULAR_DAMPING).setCanSleep(false),
+  );
+  const collider = world.createCollider(
+    RAPIER.ColliderDesc.cuboid(HX, HY, HZ)
+      .setFriction(0.3)
+      .setMassProperties(
+        CAR.MASS,
+        { x: 0, y: CAR.CENTER_OF_MASS_Y, z: 0 },
+        {
+          x: (CAR.MASS / 12) * ((2 * HY) ** 2 + (2 * HZ) ** 2),
+          y: (CAR.MASS / 12) * ((2 * HX) ** 2 + (2 * HZ) ** 2),
+          z: (CAR.MASS / 12) * ((2 * HX) ** 2 + (2 * HY) ** 2),
+        },
+        { x: 0, y: 0, z: 0, w: 1 },
+      ),
+    body,
+  );
+  return { body, collider, vehicle: createVehicleController(world, body, carStats) };
+}
+
+type Body = ReturnType<typeof createCar>['body'];
+
+export const { body, vehicle, collider: chassisCollider } = createCar(START.position[0], START.position[1], START.position[2]);
 
 /** Mashina tezligi oldinga yo'nalishda (m/s) */
-export function forwardSpeed() {
-  const q = body.rotation();
+export function forwardSpeed(b: Body = body) {
+  const q = b.rotation();
   const fx = 2 * (q.x * q.z + q.w * q.y);
   const fy = 2 * (q.y * q.z - q.w * q.x);
   const fz = 1 - 2 * (q.x * q.x + q.y * q.y);
-  const v = body.linvel();
+  const v = b.linvel();
   return fx * v.x + fy * v.y + fz * v.z;
 }
 
-export const yawOfBody = () => {
-  const q = body.rotation();
+export const yawOfBody = (b: Body = body) => {
+  const q = b.rotation();
   return Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.x * q.x));
 };
 
-export const upright = () => {
-  const q = body.rotation();
+export const upright = (b: Body = body) => {
+  const q = b.rotation();
   return 1 - 2 * (q.x * q.x + q.z * q.z);
 };
 
-export function teleport(x: number, y: number, z: number, yaw: number) {
-  body.setTranslation({ x, y, z }, true);
-  body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
-  body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-  body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+export function teleport(x: number, y: number, z: number, yaw: number, b: Body = body) {
+  b.setTranslation({ x, y, z }, true);
+  b.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
+  b.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  b.setAngvel({ x: 0, y: 0, z: 0 }, true);
 }

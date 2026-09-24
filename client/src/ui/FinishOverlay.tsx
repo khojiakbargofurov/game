@@ -1,4 +1,7 @@
-import { backToMenu, resetRoom, startSolo } from '../net/session';
+import { useEffect, useState } from 'react';
+import { ROOM } from '@game/shared';
+import { backToMenu, loadName, resetRoom, startSolo } from '../net/session';
+import { SELF_ID, botRuntime, useBots } from '../store/bots';
 import { useGameStore } from '../store/gameStore';
 import { useGarage } from '../store/garage';
 import { useNetStore, usePlace } from '../store/netStore';
@@ -69,6 +72,63 @@ function ResultsTable() {
   );
 }
 
+/** Yakka rejim, botlar bilan: jonli natijalar jadvali (marraga yetmagan botlar — "poygada…") */
+function SoloResults({ time, coins }: { time: number; coins: number }) {
+  const bots = useBots((s) => s.bots);
+  const standings = useBots((s) => s.standings);
+  const finish = useBots((s) => s.finish);
+  const wallet = useGarage((s) => s.wallet);
+  // Botlar marraga yetgan sari vaqtlar paydo bo'ladi — jadval yarim soniyada yangilanadi
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+
+  const rows = standings.map((id) => {
+    if (id === SELF_ID) return { id, name: loadName().trim() || 'Siz', color: ROOM.PLAYER_COLORS[0], time };
+    const b = bots.find((x) => x.id === id)!;
+    return { id, name: b.name, color: b.color, time: botRuntime.get(id)?.finishMs ?? null };
+  });
+
+  return (
+    <div className="overlay">
+      <div className="panel results">
+        <h1>🏁 {finish ? `${finish.place}-o'rin!` : 'Marra!'}</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>O'rin</th>
+              <th>Poygachi</th>
+              <th>Vaqt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} className={r.id === SELF_ID ? 'me' : undefined}>
+                <td>{PLACE_ICON[i] ?? i + 1}</td>
+                <td className="pcell">
+                  <span className="dot" style={{ background: r.color }} />
+                  {r.name}
+                </td>
+                <td className="num">{r.time !== null ? formatTime(r.time) : 'poygada…'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="note">
+          Tangalar: {coins}
+          {finish && finish.bonus > 0 && ` + ${finish.bonus} o'rin bonusi`} → garajga (jami 🪙 {wallet})
+        </p>
+        <button className="primary" onClick={blurThen(startSolo)}>
+          Qayta o'ynash
+        </button>
+        <button onClick={blurThen(backToMenu)}>Menyu</button>
+      </div>
+    </div>
+  );
+}
+
 /** Onlayn: o'zim marraga yetdim, boshqalar hali poygada */
 function WaitingForOthers({ time }: { time: number }) {
   const place = usePlace();
@@ -83,7 +143,7 @@ function WaitingForOthers({ time }: { time: number }) {
 
 /**
  * Marradan keyingi ekran.
- * Yakka rejim: vaqt + "Qayta o'ynash". Onlayn: natijalar jadvali (server poygani tugatganda),
+ * Yakka rejim: vaqt + "Qayta o'ynash" (botlar bilan — natijalar jadvali). Onlayn: natijalar jadvali (server poygani tugatganda),
  * undan oldin — "boshqalar kutilmoqda" banneri (o'yinchi haydashda davom etishi mumkin).
  */
 export function FinishOverlay() {
@@ -94,6 +154,7 @@ export function FinishOverlay() {
   const mode = useNetStore((s) => s.mode);
   const results = useNetStore((s) => s.results);
   const wallet = useGarage((s) => s.wallet);
+  const hasBots = useBots((s) => s.bots.length > 0);
 
   if (mode === 'online') {
     if (results) return <ResultsTable />;
@@ -102,6 +163,7 @@ export function FinishOverlay() {
   }
 
   if (phase !== 'finished' || !startedAt || !finishedAt) return null;
+  if (hasBots) return <SoloResults time={finishedAt - startedAt} coins={coins} />;
   return (
     <div className="overlay">
       <div className="panel">

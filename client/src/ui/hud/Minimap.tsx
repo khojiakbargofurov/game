@@ -7,6 +7,7 @@ import { remoteBuffers } from '../../net/snapshotBuffer';
 import { useGameStore } from '../../store/gameStore';
 import { useNetStore } from '../../store/netStore';
 import { activeTrack, useTrack } from '../../store/raceSettings';
+import { botRuntime, useBots } from '../../store/bots';
 import { useAnimationFrame } from './useAnimationFrame';
 
 const W = 260;
@@ -168,6 +169,20 @@ export function Minimap() {
         ctx.fill();
         ctx.stroke();
       }
+    }
+
+    // Botlar (yakka rejim)
+    for (const b of useBots.getState().bots) {
+      const rt = botRuntime.get(b.id);
+      if (!rt) continue;
+      const [x, y] = toMap(rt.position.x, rt.position.z);
+      ctx.fillStyle = b.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     }
 
     // O'zimiz: yo'nalish uchburchagi (xarita 90° burilgan: dunyo (x, z) → ekran (z, -x))

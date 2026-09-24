@@ -1,8 +1,18 @@
-import { useEffect, useMemo } from 'react';
-import { CanvasTexture, SRGBColorSpace } from 'three';
+import { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { CanvasTexture, SRGBColorSpace, Vector3, type Sprite } from 'three';
+
+/** Kameraga shundan yaqin bo'lsa yorliq yashiriladi (yaqinda ekranning yarmini to'sib qo'yardi) */
+const HIDE_NEAR = 9;
+const tmp = new Vector3();
 
 /** O'yinchi ismi — canvas'da chizilgan sprite (tashqi shrift/texture kerak emas) */
 export function NameTag({ name, color }: { name: string; color: string }) {
+  const sprite = useRef<Sprite>(null);
+  useFrame(({ camera }) => {
+    const s = sprite.current;
+    if (s) s.visible = s.getWorldPosition(tmp).distanceTo(camera.position) > HIDE_NEAR;
+  });
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -28,7 +38,7 @@ export function NameTag({ name, color }: { name: string; color: string }) {
   useEffect(() => () => texture.dispose(), [texture]);
 
   return (
-    <sprite position={[0, 2.4, 0]} scale={[3, 0.75, 1]}>
+    <sprite ref={sprite} position={[0, 2.4, 0]} scale={[3, 0.75, 1]}>
       <spriteMaterial map={texture} transparent depthWrite={false} />
     </sprite>
   );

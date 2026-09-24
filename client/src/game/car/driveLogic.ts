@@ -9,6 +9,8 @@ export interface DriveInput {
   left: boolean;
   right: boolean;
   handbrake: boolean;
+  /** Analog rul -1..1 (musbat = chapga) — botlar uchun; berilsa left/right o'rniga ishlatiladi */
+  steerAxis?: number;
 }
 
 export interface DriveCommand {
@@ -44,7 +46,7 @@ export function computeDrive(
   // Rul: yuqori tezlikda maksimal burchak kichrayadi, burchak sekin (silliq) o'zgaradi
   const speedRatio = clamp(Math.abs(speed) / stats.maxSpeed, 0, 1);
   const maxSteer = stats.maxSteer * lerp(1, stats.highSpeedSteerFactor, speedRatio);
-  const steerInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const steerInput = input.steerAxis !== undefined ? clamp(input.steerAxis, -1, 1) : (input.left ? 1 : 0) - (input.right ? 1 : 0);
   const target = steerInput * maxSteer;
   const rate = steerInput === 0 ? CAR.STEER_RETURN_SPEED : CAR.STEER_SPEED;
   const steer = moveTowards(prevSteer, target, rate * dt);

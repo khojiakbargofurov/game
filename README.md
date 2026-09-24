@@ -1,6 +1,6 @@
 # Adventure Racer
 
-Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 4 trassa (shu jumladan F1 uslubidagi 3 aylanali halqa), 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari.
+Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 4 trassa (shu jumladan F1 uslubidagi 3 aylanali halqa), 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari va tuning, yakka rejimda 0–7 bot.
 
 **Texnologiyalar:** Vite + React + TypeScript · three.js / @react-three/fiber / drei · @react-three/rapier · zustand · Node.js + Socket.io
 
@@ -42,9 +42,13 @@ npm start           # serverni production rejimida ishga tushirish
 npm run sim -w client        # mashina fizikasini headless sinash (tezlanish, tormoz, burilish, drift)
 npm run sim:route -w client  # avtopilot butun marshrutni bosib o'tadi (yo'l haydashga yaroqliligi)
 npm run sim:stress -w client # agressiv haydovchi (boost tezligida): korpus-relyef tegishi, ag'darilish
-# Simulyatsiyalar argumentlari: [trackId] [weather] [max] — masalan:
+npm run sim:bots -w client   # bot haydovchisi har qiyinlikda 1 aylana (vaqt, respawn, qiyin < o'rta < oson)
+npm run sim:pack -w client   # 8 ta bot bitta dunyoda: to'qnashuvdan qochish, tiqilish (3-argument — qiyinlik)
+# Simulyatsiyalar argumentlari: [trackId] [weather] [max] [speed|grip] — masalan:
 npm run sim:route -w client -- mountain snow      # Tog' dovoni, qor (sirpanchiq yo'l)
 npm run sim:stress -w client -- lake rain max     # barcha upgrade'lar 5-darajada
+npm run sim:stress -w client -- mountain rain max speed  # + ekstremal sozlash (balans/suspensiya/drift = +1)
+npm run sim:pack -w client -- circuit clear hard  # Gran Pri, 8 ta qiyin bot
 npm run smoke -w server       # server smoke-testi (server ishlab turgan bo'lishi kerak)
 npm run test:interp -w client # snapshot interpolyatsiya testlari
 ```
@@ -177,10 +181,24 @@ so'ng `npm run sim:route -w client -- <id>` bilan oxirigacha haydalishini tekshi
 | ↓ yoki S | Tormoz / orqaga |
 | ← → yoki A D | Rul |
 | Space | Qo'l tormozi (drift) |
+| Shift | Nitro (garajda "Nitro" qismi bo'lsa; boost kristali bakni to'ldiradi) |
 | R | Oxirgi checkpointga qaytish |
+| V | Kamera: orqadan / uzoqdan / kapot / tepadan |
+| Q (ushlab turish) | Orqaga qarash |
+| Sichqoncha (tortish) | Mashina atrofida qarash (qo'yib yuborilsa qaytadi) |
 | M | Ovozni yoqish/o'chirish |
-| C | Kamera rejimi (debug: chase / erkin) |
+| C | Debug: erkin (orbit) kamera |
 | P | Ishlash ko'rsatkichlari (FPS, draw call) |
+
+## Garaj va botlar
+
+- **Qismlar** (tanga): dvigatel, shinalar, boost, rul, tormoz, yengil kuzov, nitro — 5 darajadan
+  (`shared/src/upgrades.ts`, `carStats()` — client ham, server anti-cheat ham shu formulani ishlatadi).
+- **Sozlash** (bepul): balans (boshqaruv ↔ tezlik, maks. +5%), suspensiya, drift. Onlayn'da server tekshiradi.
+- **Ko'rinish** (tanga): bo'yoq, disklar, spoyler, neon (`shared/src/cosmetics.ts`) — onlayn'da boshqalarga ham ko'rinadi.
+- **Botlar** (yakka rejim, menyuda 0–7 ta, oson/o'rta/qiyin): haqiqiy fizikali mashinalar, marshrut bo'ylab
+  burilishdan oldin tormozlaydi, oldidagi mashinani aylanib o'tadi, qotib qolsa orqaga chiqadi
+  (`client/src/game/bots/botDriver.ts`). O'rin HUD'da va natijalar jadvalida; 1–3-o'rin uchun bonus tanga.
 
 ## Deploy
 

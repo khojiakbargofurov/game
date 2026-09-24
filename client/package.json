@@ -12,7 +12,9 @@
     "sim:route": "tsx scripts/sim-route.ts",
     "test:interp": "tsx scripts/test-interp.ts",
     "profile:load": "tsx scripts/profile-load.ts",
-    "sim:stress": "tsx scripts/sim-stress.ts"
+    "sim:stress": "tsx scripts/sim-stress.ts",
+    "sim:bots": "tsx scripts/sim-bots.ts",
+    "sim:pack": "tsx scripts/sim-pack.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.2",

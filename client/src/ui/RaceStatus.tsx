@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { useNetStore, usePlace } from '../store/netStore';
 import { useTrack } from '../store/raceSettings';
 import { formatTime } from './formatTime';
+import { SELF_ID, useBots } from '../store/bots';
 
 /** Joriy poyga vaqti — o'zi ~20 Hz yangilanadi */
 function useRaceTime() {
@@ -18,7 +19,7 @@ function useRaceTime() {
   return Math.max(0, (finishedAt ?? now) - startedAt);
 }
 
-/** HUD chap-tepa paneli: o'rin (onlayn), vaqt, tangalar (checkpointlar — yo'nalish ko'rsatkichida) */
+/** HUD chap-tepa paneli: o'rin (onlayn yoki botlar bilan), vaqt, tangalar (checkpointlar — yo'nalish ko'rsatkichida) */
 export function RaceStatus() {
   const { COINS, CHECKPOINTS, LAPS } = useTrack();
   const next = useGameStore((s) => s.nextCheckpoint);
@@ -27,12 +28,17 @@ export function RaceStatus() {
   const time = useRaceTime();
   const coins = useGameStore((s) => s.coins);
   const online = useNetStore((s) => s.mode === 'online');
-  const total = useNetStore((s) => s.room?.players.length ?? 1);
-  const place = usePlace();
+  const roomSize = useNetStore((s) => s.room?.players.length ?? 1);
+  const onlinePlace = usePlace();
+  // Yakka rejim: botlar bilan o'rin
+  const botCount = useBots((s) => s.bots.length);
+  const soloPlace = useBots((s) => s.standings.indexOf(SELF_ID) + 1);
+  const place = online ? onlinePlace : soloPlace;
+  const total = online ? roomSize : botCount + 1;
 
   return (
     <div className="race-status">
-      {online && place > 0 && (
+      {(online || botCount > 0) && place > 0 && (
         <div className="stat-place">
           {place}
           <small>/{total}</small>

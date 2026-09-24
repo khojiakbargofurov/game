@@ -7,6 +7,7 @@ import { pickups } from '../../store/pickups';
 import { carTarget } from '../carTarget';
 import { activeTrack } from '../../store/raceSettings';
 import { ownCarStats, useGarage } from '../../store/garage';
+import { PLACE_BONUS, botRuntime, useBots } from '../../store/bots';
 
 const COIN_R2 = COIN_RADIUS * COIN_RADIUS;
 const BOOST_R2 = BOOST_RADIUS * BOOST_RADIUS;
@@ -49,8 +50,15 @@ export function RaceLogic() {
           });
           if (cp.isFinish) {
             game.finish(now);
-            // Yakka rejim: yig'ilgan tangalar garaj hamyoniga
-            useGarage.getState().deposit(useGameStore.getState().coins);
+            // Yakka rejim: yig'ilgan tangalar (+ botlar bilan poygada o'rin bonusi) garaj hamyoniga
+            const { bots } = useBots.getState();
+            let bonus = 0;
+            if (bots.length) {
+              const place = 1 + bots.filter((b) => botRuntime.get(b.id)?.finishMs != null).length;
+              bonus = PLACE_BONUS[place - 1] ?? 0;
+              useBots.setState({ finish: { place, bonus } });
+            }
+            useGarage.getState().deposit(useGameStore.getState().coins + bonus);
           }
         }
       }
