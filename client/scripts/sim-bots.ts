@@ -37,7 +37,7 @@ for (const { id, label } of DIFFICULTIES) {
     }
     const speed = forwardSpeed();
     maxKmh = Math.max(maxKmh, speed * 3.6);
-    const out = botDrive(st, { track, x: p.x, z: p.z, yaw: yawOfBody(), speed, dt: DT, skill, lane: 0.2, maxSpeed: stats.maxSpeed, grip, pace: 1 });
+    const out = botDrive(st, { track, x: p.x, y: p.y, z: p.z, yaw: yawOfBody(), speed, dt: DT, skill, lane: 0.2, maxSpeed: stats.maxSpeed, grip, pace: 1 });
     // Halqada s o'raladi — bosib o'tilgan masofa farqlar yig'indisi
     let ds = out.s - prevS;
     if (ds < -ROUTE_LENGTH / 2) ds += ROUTE_LENGTH;

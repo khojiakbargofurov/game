@@ -157,22 +157,30 @@ export interface NearestResult {
 
 const COARSE = 8;
 
+/** Balandlik farqining "og'irligi": marshrut o'zini ko'prik ustidan kesib o'tganda to'g'ri tarmoqni tanlash uchun */
+const Y_WEIGHT = 3;
+
 /**
  * (x, z) ga eng yaqin marshrut nuqtasi. Ikki bosqichli qidiruv: har 8-namuna bo'yicha
  * qo'pol, keyin atrofida aniq + kesmaga proyeksiya. Relyef qurishda ~60k marta chaqiriladi,
  * shuning uchun natija obyekti qayta ishlatiladi (`out`).
+ * `y` berilsa, balandlik farqi ham hisobga olinadi (8-shakl trassada ko'prik va uning tagidagi yo'l ajraladi);
+ * `dist` baribir gorizontal masofa.
  */
 export function nearestOnRouteOf(
   ROUTE: Route,
   x: number,
   z: number,
   out: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 },
+  y?: number,
 ): NearestResult {
   const { xs, zs, ys, count } = ROUTE;
+  const dist2 = (i: number) =>
+    (xs[i] - x) ** 2 + (zs[i] - z) ** 2 + (y === undefined ? 0 : (Y_WEIGHT * (ys[i] - y)) ** 2);
   let best = 0;
   let bestD = Infinity;
   for (let i = 0; i < count; i += COARSE) {
-    const d = (xs[i] - x) ** 2 + (zs[i] - z) ** 2;
+    const d = dist2(i);
     if (d < bestD) {
       bestD = d;
       best = i;
@@ -181,12 +189,14 @@ export function nearestOnRouteOf(
   const lo = Math.max(0, best - COARSE);
   const hi = Math.min(count - 1, best + COARSE);
   for (let i = lo; i <= hi; i++) {
-    const d = (xs[i] - x) ** 2 + (zs[i] - z) ** 2;
+    const d = dist2(i);
     if (d < bestD) {
       bestD = d;
       best = i;
     }
   }
+  // Proyeksiya gorizontal tekislikda (tanlangan tarmoq atrofida)
+  bestD = (xs[best] - x) ** 2 + (zs[best] - z) ** 2;
   // Qo'shni kesmalarga proyeksiya
   let seg = best;
   let t = 0;

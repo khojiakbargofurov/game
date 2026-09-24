@@ -29,7 +29,7 @@ window.__goto = (s: number) => {
 
 window.__state = () => {
   const p = carTarget.position;
-  const n = activeTrack().nearestOnRoute(p.x, p.z);
+  const n = activeTrack().nearestOnRoute(p.x, p.z, undefined, p.y);
   const keys = Object.entries(input)
     .filter(([, v]) => v)
     .map(([k]) => k)

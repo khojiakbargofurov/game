@@ -19,6 +19,7 @@ import {
   upgradesAt,
 } from '@game/shared';
 import { createVehicleController } from '../src/game/car/vehicleSetup';
+import { addKitColliders } from './kitColliders';
 
 const [trackArg, weatherArg, levelArg, tuneArg] = process.argv.slice(2);
 export const track = getTrack(isTrackId(trackArg) ? trackArg : DEFAULT_TRACK);
@@ -45,6 +46,9 @@ for (let i = 0; i < pos.count; i++) pos.setY(i, terrainHeight(pos.getX(i), pos.g
 export const terrainCollider = world.createCollider(
   RAPIER.ColliderDesc.trimesh(pos.array as Float32Array, geo.index!.array as Uint32Array).setFriction(1),
 );
+// Plitkali trassa: rampa va ko'priklar (o'yindagi KitTrack bilan bir xil collider)
+const kitTris = addKitColliders(world, track);
+if (kitTris) console.log(`Kit collider: ${kitTris} uchburchak (rampa, ko'prik)`);
 
 const [HX, HY, HZ] = CAR.CHASSIS_HALF_EXTENTS;
 

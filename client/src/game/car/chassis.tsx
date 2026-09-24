@@ -23,7 +23,7 @@ const near: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 };
 export function fellOffTrack(rb: RapierRigidBody) {
   const p = rb.translation();
   if (p.y < WORLD.KILL_Y) return true;
-  const n = activeTrack().nearestOnRoute(p.x, p.z, near);
+  const n = activeTrack().nearestOnRoute(p.x, p.z, near, p.y);
   return n.dist < WORLD.OFF_TRACK_RADIUS && p.y < n.roadY - WORLD.OFF_TRACK_DROP;
 }
 

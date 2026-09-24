@@ -49,8 +49,8 @@ function progress(room: Room, p: ServerPlayer): number {
   const prevS = p.nextCheckpoint > 0 ? CHECKPOINTS[p.nextCheckpoint - 1].totalS : 0;
   const nextS = CHECKPOINTS[p.nextCheckpoint]?.totalS ?? prevS;
   if (!p.last) return prevS;
-  const [x, , z] = p.last.state.position;
-  return Math.min(Math.max(totalS(nearestOnRoute(x, z).s, prevS), prevS), nextS);
+  const [x, y, z] = p.last.state.position;
+  return Math.min(Math.max(totalS(nearestOnRoute(x, z, undefined, y).s, prevS), prevS), nextS);
 }
 
 /** Joriy o'rinlar: marraga yetganlar vaqt bo'yicha, qolganlar checkpoint + progress bo'yicha */

@@ -157,7 +157,8 @@ export interface Track {
   /** Aylana ichidagi `s` ni `ref` umumiy masofasiga eng yaqin umumiy masofaga aylantirish (halqa uchun) */
   totalS(localS: number, ref: number): number;
   routeAt(s: number, out?: RouteFrame): RouteFrame;
-  nearestOnRoute(x: number, z: number, out?: NearestResult): NearestResult;
+  /** `y` — balandlik ham hisobga olinadi (8-shaklda ko'prik va tagidagi yo'l ajraladi) */
+  nearestOnRoute(x: number, z: number, out?: NearestResult, y?: number): NearestResult;
   zoneWeights(s: number, out?: ZoneWeights): ZoneWeights;
   zoneAt(s: number): ZoneName;
   BRIDGE: BridgeDef | null;

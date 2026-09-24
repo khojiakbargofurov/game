@@ -28,7 +28,7 @@ export function createTrack(def: TrackDef): Track {
   const TILES = def.tiles ? buildTileLayout(def.tiles).pieces : [];
 
   const routeAt = (s: number, out?: RouteFrame) => routeFrameAt(ROUTE, s, out);
-  const nearestOnRoute = (x: number, z: number, out?: NearestResult) => nearestOnRouteOf(ROUTE, x, z, out);
+  const nearestOnRoute = (x: number, z: number, out?: NearestResult, y?: number) => nearestOnRouteOf(ROUTE, x, z, out, y);
 
   // ─── Zonalar ───
   /** Zonalar orasida silliq o'tish uchun og'irliklar (yig'indisi = 1) */
@@ -108,7 +108,9 @@ export function createTrack(def: TrackDef): Track {
     const hw = roadHalfWidth(n.s);
     const w = zoneWeights(n.s, out);
     const d = n.dist;
-    const road = n.roadY;
+    // Plitkali trassada relyef doim yer sathida: ko'prik va rampalar (marshrut balandroq) o'z collideri ustida,
+    // ularning tagida tepalik paydo bo'lmasin (8-shaklda pastki yo'l ko'prik ostidan o'tadi)
+    const road = def.tiles ? def.tiles.y : n.roadY;
 
     const hills = fbm2D(x / 90, z / 90, seed, 4); // ~0..1
     const detail = fbm2D(x / 18, z / 18, seed + 99, 2);

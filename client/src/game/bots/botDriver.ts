@@ -57,6 +57,8 @@ export const newDriverState = (seed: number): DriverState => ({ t: 0, stuck: 0, 
 export interface DriveContext {
   track: Track;
   x: number;
+  /** Balandlik — 8-shakl trassada ko'prik va uning tagidagi yo'lni ajratish uchun */
+  y: number;
   z: number;
   yaw: number;
   /** Oldinga tezlik (m/s) */
@@ -115,9 +117,9 @@ export interface DriveOutput {
 }
 
 export function botDrive(st: DriverState, c: DriveContext): DriveOutput {
-  const { track, x, z, yaw, speed, dt, skill } = c;
+  const { track, x, y, z, yaw, speed, dt, skill } = c;
   st.t += dt;
-  const n = track.nearestOnRoute(x, z, nearRes);
+  const n = track.nearestOnRoute(x, z, nearRes, y);
   const s = n.s;
   const halfWidth = track.roadHalfWidth(s);
 

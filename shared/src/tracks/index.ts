@@ -7,6 +7,7 @@ import type { Track, TrackDef } from './types';
 
 export * from './types';
 export { createTrack } from './createTrack';
+export * from './tiles';
 
 /** Menyudagi tartibda */
 export const TRACK_DEFS: readonly TrackDef[] = [ADVENTURE, MOUNTAIN, LAKE, CIRCUIT];

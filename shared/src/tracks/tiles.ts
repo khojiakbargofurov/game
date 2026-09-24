@@ -10,10 +10,21 @@ import type { ControlPoint } from '../route';
  * x ∈ [−0.35, 0.65] (model boshi plitka burchagidan siljigan). Burilish plitkalari (1×1, 2×2, 3×3) o'ngga buriladi;
  * chapga burilish — shu plitka teskari yo'nalishda o'tiladi. Markaziy chiziq radiusi: (n − 0.5) plitka.
  * Asfalt plitka kengligining o'rta 69% qismi (0.155..0.845).
+ *
+ * Ko'prik (`['X', k]`): rampa ↑ (2 plitka) → ko'prik boshi (tayanch) → k ta ochiq oraliq → ko'prik boshi → rampa ↓.
+ * Ochiq oraliq tagidan boshqa to'g'ri yo'l perpendikulyar o'tishi mumkin (8-shakl trassa). Ko'tarilgan plitkalar
+ * balandligi TILE_ELEV_SCALE bilan (kit masshtabida juda baland chiqardi), ular uchun trimesh collider quriladi.
  */
 
-/** To'g'ri: n plitka ('start' — 2 ta start panjarasi + 2 plitkali start arkasi, jami 4) */
-export type TileStep = readonly ['S', number] | readonly ['S', 4, 'start'] | readonly ['R' | 'L', 1 | 2 | 3];
+/**
+ * To'g'ri: n plitka ('start' — 2 ta start panjarasi + 2 plitkali start arkasi, jami 4);
+ * burilish: 1×1, 2×2, 3×3; ko'prik: jami k + 6 plitka
+ */
+export type TileStep =
+  | readonly ['S', number]
+  | readonly ['S', 4, 'start']
+  | readonly ['R' | 'L', 1 | 2 | 3]
+  | readonly ['X', number];
 
 export interface TileLayoutDef {
   /** Plitka o'lchami (m) */
@@ -33,6 +44,8 @@ export interface TilePiece {
   x: number;
   z: number;
   yaw: number;
+  /** Ko'tarilgan (rampa, ko'prik): balandlik TILE_ELEV_SCALE bilan, fizika — trimesh collider */
+  elevated?: boolean;
 }
 
 export interface TileLayout {
@@ -46,6 +59,36 @@ export interface TileLayout {
 
 /** Asfaltning yarim kengligi (plitka o'lchamiga nisbatan) */
 export const TILE_ROAD_HALF = 0.345;
+
+/** Ko'tarilgan plitkalar: 1 kit birligi balandlikda = shuncha metr (ko'prik yo'li 0.5 birlikda → 6 m) */
+export const TILE_ELEV_SCALE = 12;
+const DECK = 0.5;
+/** Ko'prik yo'lining balandligi (m, yer sathidagi yo'ldan) */
+export const TILE_DECK_HEIGHT = DECK * TILE_ELEV_SCALE;
+/** Yer sathidagi plitkalar yupqa qatlam: shu balandlikdan (kit birligi) past uchlar FLAT_Y_SCALE masshtabida */
+const FLAT_Y_LIMIT = 0.03;
+const FLAT_Y_SCALE = 4;
+/**
+ * Asfalt usti relyefdan shuncha balandda. Plitka qatlamlari (kit birligida, tugun siljishi bilan): chetdagi o't −0.01,
+ * asfalt 0, oq chiziq/bordyur +0.01 — yassilangandan keyin ±0.04 m; eng pastki qatlam ham relyefdan yuqorida bo'lsin
+ */
+const ROAD_LIFT = 0.09;
+
+/**
+ * Kit modeli uchini (model koordinatalari, tugun siljishi qo'shilgan) dunyoga o'tkazish — client (vizual, collider)
+ * va headless simulyatsiya bir xil formulani ishlatadi. `out` — [x, y, z].
+ */
+export function tileVertex(piece: TilePiece, size: number, roadY: number, x: number, y: number, z: number, out: number[]) {
+  const vy = piece.elevated ? y * TILE_ELEV_SCALE : y <= FLAT_Y_LIMIT ? y * FLAT_Y_SCALE : y * size;
+  const c = Math.cos(piece.yaw);
+  const s = Math.sin(piece.yaw);
+  const sx = x * size;
+  const sz = z * size;
+  out[0] = piece.x + sx * c + sz * s;
+  out[1] = roadY + ROAD_LIFT + vy;
+  out[2] = piece.z - sx * s + sz * c;
+  return out;
+}
 
 const CORNER = { 1: 'roadCornerSmall', 2: 'roadCornerLarge', 3: 'roadCornerLarger' } as const;
 /** Burilish bordyurlari (qizil-oq kerb): tashqi va ichki */
@@ -68,20 +111,42 @@ export function buildTileLayout(def: TileLayoutDef): TileLayout {
   let startS = 0;
 
   /** Model −z yo'nalishi `F` ga qaraydigan burilish; model boshi — kirish qirrasi o'rtasidan (−0.15, +0.65)·T */
-  const place = (model: string, ex: number, ez: number, dx: number, dz: number) => {
+  const place = (model: string, ex: number, ez: number, dx: number, dz: number, elevated = false) => {
     const yaw = Math.atan2(-dx, -dz);
     const c = Math.cos(yaw);
     const s = Math.sin(yaw);
     const ox = -0.15 * T;
     const oz = 0.65 * T;
-    pieces.push({ model, x: ex + ox * c + oz * s, z: ez - ox * s + oz * c, yaw });
+    pieces.push({ model, x: ex + ox * c + oz * s, z: ez - ox * s + oz * c, yaw, ...(elevated && { elevated }) });
   };
-  const point = (x: number, z: number) => control.push([x, def.y, z]);
+  const point = (x: number, z: number, up = 0) => control.push([x, def.y + up, z]);
 
   for (const step of def.steps) {
     // O'ng tomon (three.js: −z ga qarab turganda o'ng = +x)
     const rx = -fz;
     const rz = fx;
+    if (step[0] === 'X') {
+      // Ko'prik: rampa ↑ (2) → bosh → k oraliq → bosh (teskari) → rampa ↓ (teskari)
+      const k = step[1];
+      const cells = k + 6;
+      const at = (i: number): [number, number] => [px + fx * i * T, pz + fz * i * T];
+      place('roadRampLongWall', ...at(0), fx, fz, true);
+      place('roadStraightBridgeStart', ...at(2), fx, fz, true);
+      for (let i = 0; i < k; i++) place('roadStraightBridgeMid', ...at(3 + i), fx, fz, true);
+      // Teskari bo'laklar: o'z kirishi bizning chiqish tomonimizda
+      place('roadStraightBridgeStart', ...at(4 + k), -fx, -fz, true);
+      place('roadRampLongWall', ...at(cells), -fx, -fz, true);
+      const len = cells * T;
+      const H = TILE_DECK_HEIGHT;
+      for (let d = 0; d < len; d += SAMPLE) {
+        const up = d < 2 * T ? (d / (2 * T)) * H : d > len - 2 * T ? ((len - d) / (2 * T)) * H : H;
+        point(px + fx * d, pz + fz * d, up);
+      }
+      px += fx * len;
+      pz += fz * len;
+      length += len;
+      continue;
+    }
     if (step[0] === 'S') {
       const n = step[1];
       const len = n * T;

@@ -86,6 +86,7 @@ function BotCar({ info }: { info: BotInfo }) {
       const out = botDrive(rt.driver, {
         track,
         x: p.x,
+        y: p.y,
         z: p.z,
         yaw: yawOfBody(rb),
         speed,

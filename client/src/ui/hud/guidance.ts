@@ -27,8 +27,8 @@ export function computeGuidance(nextCheckpoint: number): Guidance | null {
   const { CHECKPOINTS, nearestOnRoute, routeAt, totalS } = activeTrack();
   const cp = CHECKPOINTS[nextCheckpoint];
   if (!cp) return null;
-  const { x, z } = carTarget.position;
-  nearestOnRoute(x, z, near);
+  const { x, y, z } = carTarget.position;
+  nearestOnRoute(x, z, near, y);
   // Aylanali poygada — umumiy masofa (checkpointga nisbatan eng yaqin aylana)
   const nearS = totalS(near.s, cp.totalS);
 

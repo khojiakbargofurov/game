@@ -78,7 +78,7 @@ while (t < 420 && cars.some((c) => c.finish === null)) {
       const q = o.body.translation();
       list.push({ x: q.x, z: q.z, speed: forwardSpeed(o.body) });
     }
-    const out = botDrive(c.driver, { track, x: p.x, z: p.z, yaw: yawOfBody(c.body), speed, dt: DT, skill, lane: c.lane, maxSpeed: stats.maxSpeed, grip, pace: 1, others: list });
+    const out = botDrive(c.driver, { track, x: p.x, y: p.y, z: p.z, yaw: yawOfBody(c.body), speed, dt: DT, skill, lane: c.lane, maxSpeed: stats.maxSpeed, grip, pace: 1, others: list });
     const flipped = upright(c.body) < 0.3 && Math.abs(speed) < 3;
     if (flipped) c.flips++;
     if (out.respawn || c.flips > 90) {
