@@ -1,0 +1,16 @@
+# Render Blueprint — multiplayer server (Socket.io). Client Vercel'da (vercel.json).
+# Render: New → Blueprint → shu repo'ni tanlang.
+services:
+  - type: web
+    name: adventure-racer-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Faqat shu domendan ulanishga ruxsat (bir nechta bo'lsa — vergul bilan)
+      - key: CORS_ORIGIN
+        value: https://adventure-racer.vercel.app

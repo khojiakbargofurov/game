@@ -148,7 +148,8 @@ masofa (`s`, metr) orqali beriladi. Relyef (`shared/src/terrain.ts`) marshrutga 
 
 Client — statik sayt, server — doimiy ishlaydigan Node jarayoni (WebSocket).
 
-**Server** (Render, Railway, Fly.io yoki istalgan VPS):
+**Server** — Render uchun tayyor `render.yaml` bor: Render → New → Blueprint → repo'ni tanlang.
+Boshqa platformalar (Railway, Fly.io, VPS):
 
 - Build: `npm install`
 - Start: `npm start`
