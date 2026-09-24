@@ -43,7 +43,7 @@ const racing = () => {
  * Checkpoint va boost kristallarini o'zi oladi (tangalarni emas).
  */
 function BotCar({ info }: { info: BotInfo }) {
-  const { wheelX } = useCarModel(info.car);
+  const { wheelX, wheelDrop } = useCarModel(info.car);
   const body = useRef<RapierRigidBody>(null);
   const wheels = useRef<(Group | null)[]>([]);
   const { controller, ensure } = useVehicleController();
@@ -122,7 +122,7 @@ function BotCar({ info }: { info: BotInfo }) {
     const rb = body.current;
     const rt = botRuntime.get(info.id);
     if (!v || !rb || !rt) return;
-    syncWheels(v, wheels.current, wheelX);
+    syncWheels(v, wheels.current, wheelX, wheelDrop);
     const p = rb.translation();
     const r = rb.rotation();
     rt.position.set(p.x, p.y, p.z);

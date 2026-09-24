@@ -81,13 +81,13 @@ export function boostKick(rb: RapierRigidBody) {
 }
 
 /** G'ildirak vizuallari: suspensiya uzunligi, rul, aylanish (har render kadrida) */
-export function syncWheels(v: VehicleController, wheels: (Group | null)[], wheelX: number) {
+export function syncWheels(v: VehicleController, wheels: (Group | null)[], wheelX: number, wheelDrop = 0) {
   for (let i = 0; i < WHEEL_COUNT; i++) {
     const w = wheels[i];
     if (!w) continue;
     const [x, y, z] = CAR.WHEEL_POSITIONS[i];
     // Vizual g'ildirak model proporsiyasida (X), balandlik va rul — fizikadan
-    w.position.set(Math.sign(x) * wheelX, y - (v.wheelSuspensionLength(i) ?? CAR.SUSPENSION_REST_LENGTH), z);
+    w.position.set(Math.sign(x) * wheelX, y - (v.wheelSuspensionLength(i) ?? CAR.SUSPENSION_REST_LENGTH) - wheelDrop, z);
     w.rotation.y = v.wheelSteering(i) ?? 0;
     w.children[0].rotation.x = v.wheelRotation(i) ?? 0;
   }

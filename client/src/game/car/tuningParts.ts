@@ -3,13 +3,15 @@ import {
   AdditiveBlending,
   BoxGeometry,
   CanvasTexture,
+  Color,
   MeshBasicMaterial,
   MeshStandardMaterial,
   type BufferGeometry,
+  type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { findCosmetic, type CosmeticCategory } from '@game/shared';
-import type { CarModel } from './carGeometry';
+import { texturedMaterial, type CarModel } from './carGeometry';
 
 /**
  * Vizual tuning qismlari uchun materiallar va geometriyalar.
@@ -33,6 +35,60 @@ export function cosmeticMaterial(cat: CosmeticCategory, id: string | null): Mesh
     });
     standardCache.set(key, m);
   }
+  return m;
+}
+
+/** Teksturadagi "bo'yoq" pikseli: to'yingan sariq-to'q sariq (superkarning zavod rangi) */
+const PAINT_HUE_MIN = 25 / 360;
+const PAINT_HUE_MAX = 65 / 360;
+const PAINT_MIN_SAT = 0.35;
+/** Zavod bo'yog'ining o'rtacha yorqinligi — yangi rangning yorqinligi shunga nisbatan masshtablanadi */
+const BASE_LIGHTNESS = 0.48;
+/** Qayta bo'yash uchun tekstura o'lchami (asl 1024 — yetarli) */
+const MAX_TEXTURE = 1024;
+
+const paintedCache = new WeakMap<Texture, Map<string, MeshStandardMaterial>>();
+const hsl = { h: 0, s: 0, l: 0 };
+const tmpColor = new Color();
+
+/** Teksturadagi zavod bo'yog'ini (sariq) tanlangan rangga almashtirish — yorqinlik (soya, blik) saqlanadi */
+function repaint(texture: Texture, hex: string): CanvasTexture {
+  const img = texture.image as CanvasImageSource & { width: number; height: number };
+  const k = Math.min(1, MAX_TEXTURE / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * k);
+  canvas.height = Math.round(img.height * k);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = data.data;
+  const target = new Color(hex).getHSL({ h: 0, s: 0, l: 0 });
+  for (let i = 0; i < px.length; i += 4) {
+    tmpColor.setRGB(px[i] / 255, px[i + 1] / 255, px[i + 2] / 255).getHSL(hsl);
+    if (hsl.s < PAINT_MIN_SAT || hsl.h < PAINT_HUE_MIN || hsl.h > PAINT_HUE_MAX || hsl.l < 0.1) continue;
+    tmpColor.setHSL(target.h, target.s, Math.min(0.95, (hsl.l * target.l) / BASE_LIGHTNESS));
+    px[i] = tmpColor.r * 255;
+    px[i + 1] = tmpColor.g * 255;
+    px[i + 2] = tmpColor.b * 255;
+  }
+  ctx.putImageData(data, 0, 0);
+  const out = new CanvasTexture(canvas);
+  out.flipY = texture.flipY;
+  out.colorSpace = texture.colorSpace;
+  out.wrapS = texture.wrapS;
+  out.wrapT = texture.wrapT;
+  out.anisotropy = texture.anisotropy;
+  return out;
+}
+
+/** Teksturali model uchun bo'yoq: qayta bo'yalgan teksturali material (bo'yoq tanlanmagan bo'lsa — undefined) */
+export function paintedTextureMaterial(model: CarModel, paintId: string | null): MeshStandardMaterial | undefined {
+  const item = findCosmetic('paint', paintId);
+  if (!item || !model.texture) return undefined;
+  let byPaint = paintedCache.get(model.texture);
+  if (!byPaint) paintedCache.set(model.texture, (byPaint = new Map()));
+  let m = byPaint.get(item.id);
+  if (!m) byPaint.set(item.id, (m = texturedMaterial(repaint(model.texture, item.color), item.metallic)));
   return m;
 }
 

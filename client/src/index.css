@@ -669,7 +669,9 @@ body,
 
 .car-picker {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Mashinalar soni o'zgarsa ham bitta qatorda */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 6px;
 }
 
@@ -918,6 +920,11 @@ body,
   flex-direction: column;
   gap: 6px;
   text-align: left;
+}
+
+.look-hint {
+  font-weight: 400;
+  color: #8a6a50;
 }
 
 .swatches {

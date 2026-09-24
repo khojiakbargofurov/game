@@ -114,7 +114,7 @@ function CarPicker() {
           className={c.id === car ? 'active' : undefined}
           onClick={() => setCar(c.id)}
         >
-          <CarIcon color={c.color} look={c.id === car ? look : undefined} />
+          <CarIcon color={c.color} shape={c.icon} look={c.id === car ? look : undefined} />
           <span>{c.label}</span>
         </button>
       ))}

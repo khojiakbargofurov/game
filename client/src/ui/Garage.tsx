@@ -101,16 +101,19 @@ function Look() {
   const buyOrEquip = useGarage((s) => s.buyOrEquip);
   const unequip = useGarage((s) => s.unequip);
   const car = useCarChoice((s) => s.car);
-  const baseColor = CARS.find((c) => c.id === car)!.color;
+  const def = CARS.find((c) => c.id === car)!;
 
   return (
     <div className="looks">
       <div className="look-preview">
-        <CarIcon color={baseColor} look={look} />
+        <CarIcon color={def.color} shape={def.icon} look={look} />
       </div>
       {COSMETIC_CATEGORIES.map((cat) => (
         <section key={cat} className="look-cat">
-          <strong>{CATEGORY_LABEL[cat]}</strong>
+          <strong>
+            {CATEGORY_LABEL[cat]}
+            {cat === 'rim' && def.fixedRims && <small className="look-hint"> — {def.label}ga ta'sir qilmaydi</small>}
+          </strong>
           <div className="swatches" role="radiogroup" aria-label={CATEGORY_LABEL[cat]}>
             <button
               role="radio"

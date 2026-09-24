@@ -26,17 +26,35 @@ export const ROOM = {
 } as const;
 
 /**
- * Tanlanadigan mashinalar (Kenney Racing Kit, client/public/model/). Shakli bir xil, rangi farq qiladi.
+ * Tanlanadigan mashinalar (client/public/model/). Fizika hammasida bir xil — farq faqat ko'rinishda.
  * `color` — menyudagi namuna rangi (modeldagi korpus rangi).
+ * `realWheels` — g'ildiraklar modeldagi asl proporsiyada (sport mashina: kichik g'ildirak), korpus shunga
+ * mos pastroq tushiriladi; aks holda (Kenney baggilari) vizual g'ildirak radiusi = CAR.WHEEL_RADIUS.
  */
-export const CARS = [
+export const CARS: readonly CarDef[] = [
   { id: 'red', label: 'Qizil', model: 'raceCarRed.glb', color: '#e85454' },
   { id: 'green', label: 'Yashil', model: 'raceCarGreen.glb', color: '#4d8f6e' },
   { id: 'orange', label: "To'q sariq", model: 'raceCarOrange.glb', color: '#f5ba42' },
   { id: 'white', label: 'Oq', model: 'raceCarWhite.glb', color: '#f2f2f4' },
-] as const;
+  { id: 'super', label: 'Superkar', model: 'superCar.glb', color: '#f5b400', realWheels: true, icon: 'sport', fixedRims: true },
+];
 
-export type CarId = (typeof CARS)[number]['id'];
+/** Yangi mashina qo'shilganda id shu yerga ham yoziladi (CarId tipi shundan) */
+const CAR_IDS = ['red', 'green', 'orange', 'white', 'super'] as const;
+
+export interface CarDef {
+  id: CarId;
+  label: string;
+  model: string;
+  color: string;
+  realWheels?: boolean;
+  /** Menyudagi rasm shakli (standart — bagi) */
+  icon?: 'buggy' | 'sport';
+  /** Disk alohida qism emas (tekstura atlasida) — disk rangi tuningi bu mashinaga ta'sir qilmaydi */
+  fixedRims?: boolean;
+}
+
+export type CarId = (typeof CAR_IDS)[number];
 export const DEFAULT_CAR: CarId = 'red';
 
 export function isCarId(v: unknown): v is CarId {

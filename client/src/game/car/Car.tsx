@@ -42,7 +42,7 @@ export function Car() {
   const me = useNetStore((s) => (s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined));
   const car = me ? me.car : chosen;
   const look = me ? me.look : garageLook;
-  const { wheelX } = useCarModel(car);
+  const { wheelX, wheelDrop } = useCarModel(car);
   const body = useRef<RapierRigidBody>(null);
   const anchor = useRef<Group>(null);
   const wheels = useRef<(Group | null)[]>([]);
@@ -121,7 +121,7 @@ export function Car() {
     const rb = body.current;
     if (!v || !rb) return;
 
-    syncWheels(v, wheels.current, wheelX);
+    syncWheels(v, wheels.current, wheelX, wheelDrop);
 
     // Kamera/yorug'lik uchun interpolyatsiyalangan pozitsiya
     if (anchor.current) {

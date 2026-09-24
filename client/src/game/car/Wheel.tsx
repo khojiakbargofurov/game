@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { Group } from 'three';
 import type { CarId } from '@game/shared';
-import { useCarModel, wheelMaterial } from './carGeometry';
+import { useCarModel } from './carGeometry';
 import { cosmeticMaterial } from './tuningParts';
 
 /**
@@ -14,18 +14,19 @@ export const Wheel = forwardRef<Group, { car: CarId; right?: boolean; rim?: stri
   ref,
 ) {
   const model = useCarModel(car);
-  const rimMaterial = cosmeticMaterial('rim', rim);
+  // Disk alohida bo'lmagan modelda (teksturali) disk rangi qo'llanmaydi
+  const rimMaterial = model.rim ? cosmeticMaterial('rim', rim) : undefined;
   const rotation = right ? Math.PI : 0;
   return (
     <group ref={ref}>
       <group name="spin">
         {rimMaterial ? (
           <>
-            <mesh geometry={model.tire} material={wheelMaterial} rotation-y={rotation} castShadow />
-            <mesh geometry={model.rim} material={rimMaterial} rotation-y={rotation} castShadow />
+            <mesh geometry={model.tire} material={model.wheelMaterial} rotation-y={rotation} castShadow />
+            <mesh geometry={model.rim!} material={rimMaterial} rotation-y={rotation} castShadow />
           </>
         ) : (
-          <mesh geometry={model.wheel} material={wheelMaterial} rotation-y={rotation} castShadow />
+          <mesh geometry={model.wheel} material={model.wheelMaterial} rotation-y={rotation} castShadow />
         )}
       </group>
     </group>
