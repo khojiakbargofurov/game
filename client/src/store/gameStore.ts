@@ -21,6 +21,8 @@ interface GameState {
   boostUntil: number;
   /** Respawn nuqtasi — oxirgi o'tilgan checkpoint */
   respawnPoint: SpawnPoint;
+  /** Nitro bakida qolgan vaqt (ms) — poyga boshida to'la, boost kristali to'ldiradi */
+  nitroMs: number;
 
   startCountdown: (endsAt: number) => void;
   startRace: (at?: number) => void;
@@ -28,6 +30,7 @@ interface GameState {
   finish: (at: number) => void;
   addCoin: () => void;
   startBoost: (until: number) => void;
+  setNitro: (ms: number) => void;
   reset: () => void;
 }
 
@@ -39,6 +42,7 @@ const initial = {
   nextCheckpoint: 0,
   coins: 0,
   boostUntil: 0,
+  nitroMs: 0,
   // Haqiqiy start nuqtasi har poyga boshida resetRace() bilan beriladi (tanlangan trassa bo'yicha)
   respawnPoint: getTrack(DEFAULT_TRACK).START,
 };
@@ -51,5 +55,6 @@ export const useGameStore = create<GameState>((set) => ({
   finish: (finishedAt) => set({ phase: 'finished', finishedAt }),
   addCoin: () => set((s) => ({ coins: s.coins + 1 })),
   startBoost: (boostUntil) => set({ boostUntil }),
+  setNitro: (nitroMs) => set({ nitroMs }),
   reset: () => set({ ...initial }),
 }));

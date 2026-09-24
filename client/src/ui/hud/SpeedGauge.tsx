@@ -17,11 +17,12 @@ function polar(deg: number, r = R) {
 }
 const ARC_PATH = `M ${polar(-SWEEP / 2)} A ${R} ${R} 0 1 1 ${polar(SWEEP / 2)}`;
 
-/** Tezlik shkalasi (yoy) + km/h + boost indikatori. Har kadrda DOM to'g'ridan-to'g'ri yangilanadi */
+/** Tezlik shkalasi (yoy) + km/h + boost va nitro indikatorlari. Har kadrda DOM to'g'ridan-to'g'ri yangilanadi */
 export function SpeedGauge() {
   const fill = useRef<SVGPathElement>(null);
   const value = useRef<HTMLSpanElement>(null);
   const boostBar = useRef<HTMLDivElement>(null);
+  const nitroBar = useRef<HTMLDivElement>(null);
   const shown = useRef(0);
 
   useAnimationFrame(() => {
@@ -34,10 +35,17 @@ export function SpeedGauge() {
       fill.current.classList.toggle('over', shown.current > CAR.MAX_SPEED * 3.6 + 2);
     }
     if (value.current) value.current.textContent = String(Math.round(shown.current));
-    const left = useGameStore.getState().boostUntil - performance.now();
+    const { boostUntil, nitroMs } = useGameStore.getState();
+    const stats = ownCarStats();
+    const left = boostUntil - performance.now();
     if (boostBar.current) {
-      boostBar.current.style.transform = `scaleX(${Math.max(0, left) / ownCarStats().boostDurationMs})`;
+      boostBar.current.style.transform = `scaleX(${Math.max(0, left) / stats.boostDurationMs})`;
       boostBar.current.parentElement!.hidden = left <= 0;
+    }
+    // Nitro bak — faqat nitro upgrade'i bo'lsa
+    if (nitroBar.current) {
+      nitroBar.current.style.transform = `scaleX(${stats.nitroCapacityMs ? nitroMs / stats.nitroCapacityMs : 0})`;
+      nitroBar.current.parentElement!.hidden = stats.nitroCapacityMs === 0;
     }
   });
 
@@ -54,6 +62,10 @@ export function SpeedGauge() {
       <div className="boost-meter" hidden>
         <div ref={boostBar} />
         <em>BOOST</em>
+      </div>
+      <div className="boost-meter nitro-meter" hidden>
+        <div ref={nitroBar} />
+        <em>NITRO · Shift</em>
       </div>
     </div>
   );

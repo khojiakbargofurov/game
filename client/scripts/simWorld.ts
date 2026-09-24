@@ -10,13 +10,13 @@ import {
   DEFAULT_TRACK,
   DEFAULT_WEATHER,
   MAX_UPGRADE_LEVEL,
-  NO_UPGRADES,
   WEATHER_FX,
   WORLD,
   carStats,
   getTrack,
   isTrackId,
   isWeather,
+  upgradesAt,
 } from '@game/shared';
 import { createVehicleController } from '../src/game/car/vehicleSetup';
 
@@ -25,7 +25,7 @@ export const track = getTrack(isTrackId(trackArg) ? trackArg : DEFAULT_TRACK);
 export const weather = isWeather(weatherArg) ? weatherArg : DEFAULT_WEATHER;
 const L = levelArg === 'max' ? MAX_UPGRADE_LEVEL : 0;
 export const stats = carStats(
-  levelArg === 'max' ? { engine: L, grip: L, boost: L, steering: L } : NO_UPGRADES,
+  upgradesAt(L),
   WEATHER_FX[weather].grip,
 );
 const { START, terrainHeight } = track;

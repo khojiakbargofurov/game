@@ -106,6 +106,7 @@ export function Car() {
   const steer = useRef(0);
   const flipTime = useRef(0);
   const lastBoost = useRef(0);
+  const nitroWas = useRef(false);
   /** Oldingi qadamdagi tezlik vektori — urilishni (keskin Δv) aniqlash uchun; null = teleportdan keyin */
   const prevVel = useRef<Vector3 | null>(null);
 
@@ -146,20 +147,28 @@ export function Car() {
       prevVel.current = null;
     }
 
-    const boosting = performance.now() < game.boostUntil;
+    const keys = controlsEnabled() ? input : IDLE_INPUT;
+    // Upgrade'lar va ob-havo (sirpanchiq yo'l) — har qadamda (poygalar orasida o'zgarishi mumkin)
+    const stats = ownCarStats();
+
+    // Nitro: Shift bosib turilsa bak sarflanadi; kristall boost bilan qo'shilmaydi (multiplikator bir xil)
+    const nitroOn = keys === input && input.nitro && game.nitroMs > 0 && speed > -0.5;
+    if (nitroOn) {
+      if (!nitroWas.current) addTrauma(CAMERA.SHAKE.BOOST * 0.6);
+      game.setNitro(Math.max(0, game.nitroMs - dt * 1000));
+    }
+    nitroWas.current = nitroOn;
+    const boosting = performance.now() < game.boostUntil || nitroOn;
     carTarget.boosting = boosting;
     // Yangi boost — oldinga bir martalik turtki
     if (game.boostUntil !== lastBoost.current) {
       lastBoost.current = game.boostUntil;
-      if (boosting) {
+      if (performance.now() < game.boostUntil) {
         const r = rb.rotation();
         tmpVec.copy(FORWARD).applyQuaternion(tmpQuat.set(r.x, r.y, r.z, r.w)).multiplyScalar(CAR.MASS * CAR.BOOST_KICK);
         rb.applyImpulse(tmpVec, true);
       }
     }
-    const keys = controlsEnabled() ? input : IDLE_INPUT;
-    // Upgrade'lar va ob-havo (sirpanchiq yo'l) — har qadamda (poygalar orasida o'zgarishi mumkin)
-    const stats = ownCarStats();
     const cmd = computeDrive(steer.current, keys, speed, dt, boosting ? CAR.BOOST_MULTIPLIER : 1, stats);
     steer.current = cmd.steer;
 

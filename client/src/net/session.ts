@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { useCarChoice } from '../store/carChoice';
 import { useNetStore } from '../store/netStore';
 import { activeTrack, useMenuChoice } from '../store/raceSettings';
-import { useGarage } from '../store/garage';
+import { ownCarStats, useGarage } from '../store/garage';
 import { resetPickups } from '../store/pickups';
 import { whenWorldReady } from '../store/loadState';
 import { observeServerTime, resetServerClock, serverNow } from './serverClock';
@@ -41,7 +41,7 @@ const toLocalTime = (serverMs: number) => performance.now() + (serverMs - server
 function resetRace(spawn: SpawnPoint) {
   resetPickups();
   useGameStore.getState().reset();
-  useGameStore.setState({ respawnPoint: spawn });
+  useGameStore.setState({ respawnPoint: spawn, nitroMs: ownCarStats().nitroCapacityMs });
   requestRespawn();
   pendingCheckpoint = null;
 }

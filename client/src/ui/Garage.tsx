@@ -1,7 +1,7 @@
 import { MAX_UPGRADE_LEVEL, UPGRADES } from '@game/shared';
 import { nextCost, useGarage } from '../store/garage';
 
-const ICON = { engine: '⚙️', grip: '🛞', boost: '⚡', steering: '🎯' } as const;
+const ICON = { engine: '⚙️', grip: '🛞', boost: '⚡', steering: '🎯', brakes: '🛑', weight: '🪶', nitro: '🔥' } as const;
 
 /** Garaj: poygalarda yig'ilgan tangalar evaziga upgrade'lar (brauzerda saqlanadi) */
 export function Garage({ onClose }: { onClose: () => void }) {

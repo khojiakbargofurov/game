@@ -71,7 +71,9 @@ export function RaceLogic() {
       const available = !taken || now - taken > BOOST_RESPAWN_MS;
       if (available && dist2(BOOSTS[i].position, x, y, z) < BOOST_R2) {
         pickups.boostTakenAt[i] = now;
-        game.startBoost(now + ownCarStats().boostDurationMs);
+        const stats = ownCarStats();
+        game.startBoost(now + stats.boostDurationMs);
+        game.setNitro(stats.nitroCapacityMs); // kristall nitro bakini ham to'ldiradi
       }
     }
   });

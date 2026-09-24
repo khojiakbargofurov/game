@@ -106,6 +106,8 @@ export const CAR = {
   BOOST_DURATION_MS: 2500,
   /** Boost olingan zahoti qo'shiladigan tezlik (m/s) */
   BOOST_KICK: 6,
+  /** Nitro bak hajmi har upgrade darajasiga (ms); tezlik multiplikatori — BOOST_MULTIPLIER */
+  NITRO_MS_PER_LEVEL: 1200,
 } as const;
 
 export const ANTI_CHEAT = {

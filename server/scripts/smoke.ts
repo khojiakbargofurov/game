@@ -221,7 +221,7 @@ async function main() {
   const configured = await new Promise<AckResult<RoomInfo>>((r) =>
     h.emit(
       'room:create',
-      { name: 'Sozlovchi', upgrades: { engine: 99, grip: -3, boost: 2.7, steering: 1 }, settings: { trackId: 'lake', weather: 'snow' } },
+      { name: 'Sozlovchi', upgrades: { engine: 99, grip: -3, boost: 2.7, steering: 1 } as never, settings: { trackId: 'lake', weather: 'snow' } },
       r,
     ),
   );
@@ -230,6 +230,7 @@ async function main() {
     check(info.settings.trackId === 'lake' && info.settings.weather === 'snow', 'xona menyudagi sharoit bilan yaratildi');
     const u = info.players[0].upgrades;
     check(u.engine === 5 && u.grip === 0 && u.boost === 2 && u.steering === 1, 'upgrade darajalari 0..5 ga cheklandi');
+    check(u.brakes === 0 && u.weight === 0 && u.nitro === 0, "eski klient (yangi qismlarsiz) — yangi qismlar 0");
     await join(g, info.code, 'Mehmon2');
     const settings = (c: Client, patch: object) =>
       new Promise<AckResult<null>>((r) => c.emit('room:settings', patch as never, r));

@@ -12,10 +12,12 @@ export const input = {
   handbrake: false,
   /** Q — ushlab turilsa orqaga qarash */
   lookBack: false,
+  /** Shift — nitro */
+  nitro: false,
   respawn: false,
 };
 
-type HeldAction = 'forward' | 'backward' | 'left' | 'right' | 'handbrake' | 'lookBack';
+type HeldAction = 'forward' | 'backward' | 'left' | 'right' | 'handbrake' | 'lookBack' | 'nitro';
 
 /** Strelkalar va WASD — bir xil amallar (e.code klaviatura tartibidan qat'i nazar joylashuv bo'yicha) */
 const KEY_MAP: Record<string, HeldAction> = {
@@ -29,6 +31,8 @@ const KEY_MAP: Record<string, HeldAction> = {
   KeyD: 'right',
   Space: 'handbrake',
   KeyQ: 'lookBack',
+  ShiftLeft: 'nitro',
+  ShiftRight: 'nitro',
 };
 
 /** Hozir bosib turilgan tugmalar: bitta amalga ikki tugma (↑ va W) — biri qo'yilsa, ikkinchisi ishlayveradi */
@@ -63,7 +67,7 @@ const onUp = (e: KeyboardEvent) => onKey(e, false);
 /** Oyna fokusni yo'qotsa tugmalar "yopishib" qolmasin */
 const onBlur = () => {
   held.clear();
-  input.forward = input.backward = input.left = input.right = input.handbrake = input.lookBack = false;
+  input.forward = input.backward = input.left = input.right = input.handbrake = input.lookBack = input.nitro = false;
 };
 
 /** Dasturiy respawn so'rovi (masalan, "Qayta o'ynash" tugmasi) */

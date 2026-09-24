@@ -532,6 +532,14 @@ body,
   transform-origin: left;
 }
 
+.nitro-meter {
+  margin-top: 4px;
+}
+
+.nitro-meter div {
+  background: linear-gradient(90deg, #e0572b, #ffb347);
+}
+
 .boost-meter em {
   position: absolute;
   inset: 0;
