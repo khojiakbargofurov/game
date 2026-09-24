@@ -42,8 +42,10 @@ export function Boulders() {
     slots.current.forEach((slot, i) => {
       const rb = bodies.current[i];
       if (rb && now - slot.bornAt > LIFETIME && rb.isEnabled()) {
+        rb.setLinvel({ x: 0, y: 0, z: 0 }, false);
+        rb.setAngvel({ x: 0, y: 0, z: 0 }, false);
         rb.setEnabled(false);
-        rb.setTranslation({ x: 0, y: HIDDEN_Y, z: 0 }, false);
+        rb.setTranslation({ x: i * 8, y: HIDDEN_Y, z: 0 }, false);
       }
     });
 
@@ -77,10 +79,16 @@ export function Boulders() {
       {slots.current.map((_, i) => (
         <RigidBody
           key={i}
-          ref={(rb) => void (bodies.current[i] = rb)}
+          ref={(rb) => {
+            bodies.current[i] = rb;
+            // Darhol (birinchi fizika qadamidan oldin) o'chiriladi. Aks holda 400 kg'lik toshlar bir-biriga kirib
+            // "portlardi" va o'chirilgandan keyin ham qolgan katta tezliklari Rapier solveri orqali o'yinchi
+            // mashinasini asta-sekin qiyshaytirib, ag'darardi (Tog' dovonida tik turgan mashina ham og'ardi).
+            if (rb && rb.isEnabled() && slots.current[i].bornAt === -Infinity) rb.setEnabled(false);
+          }}
           colliders={false}
-          // Birinchi kadrda muddati o'tgan deb hisoblanib o'chiriladi (bornAt = -Infinity)
-          position={[0, HIDDEN_Y, 0]}
+          // Yashirin joylar bir-biridan uzoqda — toshlar hech qachon bir-birining ichida yaratilmaydi
+          position={[i * 8, HIDDEN_Y, 0]}
           canSleep={false}
         >
           <BallCollider args={[RADIUS]} mass={MASS} friction={0.9} restitution={0.2} />

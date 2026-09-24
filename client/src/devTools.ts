@@ -34,7 +34,10 @@ window.__state = () => {
     .filter(([, v]) => v)
     .map(([k]) => k)
     .join(',');
-  return `s=${n.s.toFixed(1)} y=${p.y.toFixed(2)} road=${n.roadY.toFixed(2)} lat=${n.lateral.toFixed(1)} v=${carTarget.speed.toFixed(1)} keys=[${keys}]`;
+  // up: 1 = tik, 0 = yonboshda, -1 = teskari
+  const q = carTarget.quaternion;
+  const up = 1 - 2 * (q.x * q.x + q.z * q.z);
+  return `s=${n.s.toFixed(1)} y=${p.y.toFixed(2)} road=${n.roadY.toFixed(2)} lat=${n.lateral.toFixed(1)} v=${carTarget.speed.toFixed(1)} up=${up.toFixed(2)} keys=[${keys}]`;
 };
 
 window.__perf = () => ({ ...perfSnapshot, worldReadyAt: useLoadState.getState().readyAt });

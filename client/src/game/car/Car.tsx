@@ -184,6 +184,9 @@ export function Car() {
   // joriy respawnPoint berilsa, har qanday qayta renderda (masalan, PerformanceMonitor DPR'ni o'zgartirganda)
   // mashina haydash o'rtasida oxirgi checkpointga "sakrab" ketardi. Respawn'lar imperativ (teleport()).
   const [initial] = useState(() => {
+    // Menyu/xona ekranida dunyo boshqa trassaga qayta qurilgan bo'lishi mumkin — mashina shu trassaning startida
+    // turishi kerak (oldingi trassaning start nuqtasi yangi relyef ichida qolib, mashina yer ostiga tushib ketardi)
+    if (useNetStore.getState().screen !== 'race') useGameStore.setState({ respawnPoint: activeTrack().START });
     const spawn = useGameStore.getState().respawnPoint;
     return { position: spawn.position, rotation: [0, spawn.yaw, 0] as [number, number, number] };
   });
