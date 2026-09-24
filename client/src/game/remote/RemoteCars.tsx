@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { Suspense, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
 import { Quaternion, Vector3, type Group } from 'three';
@@ -74,7 +74,9 @@ export function RemoteCars() {
   return (
     <>
       {others.map((p) => (
-        <RemoteCar key={p.id} player={p} />
+        <Suspense key={p.id} fallback={null}>
+          <RemoteCar player={p} />
+        </Suspense>
       ))}
     </>
   );

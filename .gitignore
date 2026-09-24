@@ -5,3 +5,5 @@ dist
 .env*
 !.env.example
 .vercel
+# Mashina modellarining manba fayllari (katta) — scripts/import-car.ts shulardan o'yin modellarini yasaydi
+client/model-src/

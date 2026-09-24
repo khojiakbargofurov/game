@@ -92,7 +92,10 @@ export default function Scene() {
           <Ruins />
           <KitTrack />
           <Boulders />
-          <Car />
+          {/* Mashinalar o'z Suspense'ida: model yuklanayotganda dunyo yashirilmaydi */}
+          <Suspense fallback={null}>
+            <Car />
+          </Suspense>
           <RemoteCars />
           <Bots />
           <WorldReady />

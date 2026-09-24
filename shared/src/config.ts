@@ -37,10 +37,39 @@ export const CARS: readonly CarDef[] = [
   { id: 'orange', label: "To'q sariq", model: 'raceCarOrange.glb', color: '#f5ba42' },
   { id: 'white', label: 'Oq', model: 'raceCarWhite.glb', color: '#f2f2f4' },
   { id: 'super', label: 'Superkar', model: 'superCar.glb', color: '#f5b400', realWheels: true, icon: 'sport', fixedRims: true },
+  // Sketchfab modellari — scripts/import-car.ts bilan o'yin formatiga o'tkazilgan (teksturali, asl g'ildiraklar)
+  { id: 'rally', label: 'Rally', model: 'rally.glb', color: '#e8e8ec', realWheels: true, icon: 'sedan', fixedRims: true },
+  { id: 'sport', label: 'Sport', model: 'sport.glb', color: '#c93a3a', realWheels: true, icon: 'sport', fixedRims: true },
+  { id: 'coupe', label: 'Kupe', model: 'coupe.glb', color: '#3a6fc9', realWheels: true, icon: 'sport', fixedRims: true },
+  { id: 'sedan', label: 'Sedan', model: 'sedan.glb', color: '#c9b53a', realWheels: true, icon: 'sedan', fixedRims: true },
+  { id: 'compact', label: 'Kompakt', model: 'compact.glb', color: '#3ac98f', realWheels: true, icon: 'hatch', fixedRims: true },
+  { id: 'hatchback', label: 'Xetchbek', model: 'hatchback.glb', color: '#c97a3a', realWheels: true, icon: 'hatch', fixedRims: true },
+  { id: 'wagon', label: 'Universal', model: 'wagon.glb', color: '#8a8f99', realWheels: true, icon: 'wagon', fixedRims: true },
+  { id: 'minivan', label: 'Miniven', model: 'minivan.glb', color: '#b8bcc4', realWheels: true, icon: 'van', fixedRims: true },
+  { id: 'suv', label: 'Jip', model: 'suv.glb', color: '#2f3a4a', realWheels: true, icon: 'suv', fixedRims: true },
+  { id: 'offroad', label: 'Offroad', model: 'offroad.glb', color: '#4d6b3a', realWheels: true, icon: 'suv', fixedRims: true },
+  { id: 'pickup', label: 'Pikap', model: 'pickup.glb', color: '#9a3a2a', realWheels: true, icon: 'pickup', fixedRims: true },
 ];
 
 /** Yangi mashina qo'shilganda id shu yerga ham yoziladi (CarId tipi shundan) */
-const CAR_IDS = ['red', 'green', 'orange', 'white', 'super'] as const;
+const CAR_IDS = [
+  'red',
+  'green',
+  'orange',
+  'white',
+  'super',
+  'rally',
+  'sport',
+  'coupe',
+  'sedan',
+  'compact',
+  'hatchback',
+  'wagon',
+  'minivan',
+  'suv',
+  'offroad',
+  'pickup',
+] as const;
 
 export interface CarDef {
   id: CarId;
@@ -49,12 +78,13 @@ export interface CarDef {
   color: string;
   realWheels?: boolean;
   /** Menyudagi rasm shakli (standart — bagi) */
-  icon?: 'buggy' | 'sport';
+  icon?: CarIconShape;
   /** Disk alohida qism emas (tekstura atlasida) — disk rangi tuningi bu mashinaga ta'sir qilmaydi */
   fixedRims?: boolean;
 }
 
 export type CarId = (typeof CAR_IDS)[number];
+export type CarIconShape = 'buggy' | 'sport' | 'sedan' | 'hatch' | 'wagon' | 'van' | 'suv' | 'pickup';
 export const DEFAULT_CAR: CarId = 'red';
 
 export function isCarId(v: unknown): v is CarId {

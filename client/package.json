@@ -14,7 +14,8 @@
     "profile:load": "tsx scripts/profile-load.ts",
     "sim:stress": "tsx scripts/sim-stress.ts",
     "sim:bots": "tsx scripts/sim-bots.ts",
-    "sim:pack": "tsx scripts/sim-pack.ts"
+    "sim:pack": "tsx scripts/sim-pack.ts",
+    "import:cars": "tsx scripts/import-car.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.2",

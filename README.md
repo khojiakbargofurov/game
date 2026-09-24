@@ -88,8 +88,16 @@ npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara,
 
 ## Mashinalar
 
-Menyuda 5 ta mashinadan biri tanlanadi: Qizil, Yashil, To'q sariq, Oq (Kenney Racing Kit) va Superkar (teksturali model),
-`client/public/model/`.
+Menyuda 16 ta mashinadan biri tanlanadi (`client/public/model/`): Kenney Racing Kit baggilari (Qizil, Yashil, To'q sariq, Oq),
+Superkar va Sketchfab modellari — Rally, Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap.
+Kenney modellari oldindan yuklanadi, qolganlari (0.3–0.4 MB) — tanlanganda yoki kerak bo'lganda; har mashina o'z
+`Suspense`ida, shuning uchun yuklanayotgan model dunyoni to'xtatmaydi. Bir nechta teksturali modellar runtime'da bitta
+atlasga yig'iladi; bo'yoq tuningi kuzovning asosiy rangini avtomatik aniqlab qayta bo'yaydi.
+
+**Yangi mashina qo'shish** (tashqi GLB): manba faylni `client/model-src/` ga qo'ying (repo va deploy'ga kirmaydi),
+`client/scripts/import-car.ts` dagi `CARS` ro'yxatiga yozing va `npm run import:cars -w client` ni ishga tushiring —
+vosita mashinani ajratadi (bir faylda bir nechta bo'lsa ham), old tomonni aniqlaydi (old oyna bo'yicha; adashsa — `flip`),
+g'ildiraklarga o'yin nomlarini beradi va teksturalarni siqadi. So'ng `shared/src/config.ts` dagi `CARS` va `CAR_IDS` ga qo'shing.
 Tanlov brauzerda saqlanadi; onlayn xonada boshqa o'yinchilar ham sizning mashinangizni ko'radi.
 Ro'yxat — `shared/src/config.ts` dagi `CARS`. Mashinalar faqat ko'rinishi bilan farq qiladi.
 

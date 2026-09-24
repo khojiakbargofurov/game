@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useBeforePhysicsStep, type RapierRigidBody } from '@react-three/rapier';
 import type { Group } from 'three';
@@ -209,7 +209,9 @@ export function Bots() {
   return (
     <>
       {bots.map((b) => (
-        <BotCar key={`${raceId}-${b.id}`} info={b} />
+        <Suspense key={`${raceId}-${b.id}`} fallback={null}>
+          <BotCar info={b} />
+        </Suspense>
       ))}
       <BotStandings />
     </>

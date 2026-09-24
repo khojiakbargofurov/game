@@ -38,21 +38,50 @@ export function cosmeticMaterial(cat: CosmeticCategory, id: string | null): Mesh
   return m;
 }
 
-/** Teksturadagi "bo'yoq" pikseli: to'yingan sariq-to'q sariq (superkarning zavod rangi) */
-const PAINT_HUE_MIN = 25 / 360;
-const PAINT_HUE_MAX = 65 / 360;
-const PAINT_MIN_SAT = 0.35;
-/** Zavod bo'yog'ining o'rtacha yorqinligi — yangi rangning yorqinligi shunga nisbatan masshtablanadi */
-const BASE_LIGHTNESS = 0.48;
+/**
+ * Teksturadagi "bo'yoq" pikseli: kuzov qismidagi eng ko'p uchraydigan to'yingan rang tusi (hue) ± PAINT_HUE_RANGE —
+ * har mashinada avtomatik aniqlanadi (superkar — sariq, sedan — sariq-yashil, offroad — to'q yashil...)
+ */
+const PAINT_HUE_RANGE = 22 / 360;
+const PAINT_MIN_SAT = 0.3;
+/** Kuzov qismining kamida shuncha ulushi to'yingan rangda bo'lmasa — bo'yoq qo'llanmaydi (kulrang/oq kuzov) */
+const PAINT_MIN_SHARE = 0.08;
 /** Qayta bo'yash uchun tekstura o'lchami (asl 1024 — yetarli) */
 const MAX_TEXTURE = 1024;
 
-const paintedCache = new WeakMap<Texture, Map<string, MeshStandardMaterial>>();
+const paintedCache = new WeakMap<Texture, Map<string, MeshStandardMaterial | null>>();
 const hsl = { h: 0, s: 0, l: 0 };
 const tmpColor = new Color();
 
-/** Teksturadagi zavod bo'yog'ini (sariq) tanlangan rangga almashtirish — yorqinlik (soya, blik) saqlanadi */
-function repaint(texture: Texture, hex: string): CanvasTexture {
+/** Kuzov qismidagi (rect) asosiy bo'yoq: tus va o'rtacha yorqinlik; to'yingan piksel kam bo'lsa — null */
+function detectPaint(px: Uint8ClampedArray, width: number, rect: [number, number, number, number]) {
+  const bins = new Float64Array(36);
+  const light = new Float64Array(36);
+  const height = px.length / 4 / width;
+  const [x0, y0, x1, y1] = [rect[0] * width, rect[1] * height, rect[2] * width, rect[3] * height].map(Math.round);
+  let total = 0;
+  for (let y = y0; y < y1; y += 2) {
+    for (let x = x0; x < x1; x += 2) {
+      const i = (y * width + x) * 4;
+      total++;
+      tmpColor.setRGB(px[i] / 255, px[i + 1] / 255, px[i + 2] / 255).getHSL(hsl);
+      if (hsl.s < PAINT_MIN_SAT || hsl.l < 0.1 || hsl.l > 0.9) continue;
+      const b = Math.min(35, Math.floor(hsl.h * 36));
+      bins[b]++;
+      light[b] += hsl.l;
+    }
+  }
+  let best = 0;
+  for (let b = 1; b < 36; b++) if (bins[b] > bins[best]) best = b;
+  if (bins[best] < total * PAINT_MIN_SHARE) return null;
+  return { hue: (best + 0.5) / 36, lightness: light[best] / bins[best] };
+}
+
+/**
+ * Teksturadagi zavod bo'yog'ini tanlangan rangga almashtirish — faqat kuzov qismida (rect), yorqinlik (soya, blik)
+ * saqlanadi. Asosiy rang aniqlanmasa (kulrang kuzov) — null
+ */
+function repaint(texture: Texture, hex: string, rect: [number, number, number, number]): CanvasTexture | null {
   const img = texture.image as CanvasImageSource & { width: number; height: number };
   const k = Math.min(1, MAX_TEXTURE / Math.max(img.width, img.height));
   const canvas = document.createElement('canvas');
@@ -62,14 +91,21 @@ function repaint(texture: Texture, hex: string): CanvasTexture {
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const px = data.data;
+  const base = detectPaint(px, canvas.width, rect);
+  if (!base) return null;
   const target = new Color(hex).getHSL({ h: 0, s: 0, l: 0 });
-  for (let i = 0; i < px.length; i += 4) {
-    tmpColor.setRGB(px[i] / 255, px[i + 1] / 255, px[i + 2] / 255).getHSL(hsl);
-    if (hsl.s < PAINT_MIN_SAT || hsl.h < PAINT_HUE_MIN || hsl.h > PAINT_HUE_MAX || hsl.l < 0.1) continue;
-    tmpColor.setHSL(target.h, target.s, Math.min(0.95, (hsl.l * target.l) / BASE_LIGHTNESS));
-    px[i] = tmpColor.r * 255;
-    px[i + 1] = tmpColor.g * 255;
-    px[i + 2] = tmpColor.b * 255;
+  const [x0, y0, x1, y1] = [rect[0] * canvas.width, rect[1] * canvas.height, rect[2] * canvas.width, rect[3] * canvas.height].map(Math.round);
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * canvas.width + x) * 4;
+      tmpColor.setRGB(px[i] / 255, px[i + 1] / 255, px[i + 2] / 255).getHSL(hsl);
+      const dh = Math.abs(((hsl.h - base.hue + 1.5) % 1) - 0.5);
+      if (hsl.s < PAINT_MIN_SAT || dh > PAINT_HUE_RANGE || hsl.l < 0.06) continue;
+      tmpColor.setHSL(target.h, target.s, Math.min(0.95, (hsl.l * target.l) / base.lightness));
+      px[i] = tmpColor.r * 255;
+      px[i + 1] = tmpColor.g * 255;
+      px[i + 2] = tmpColor.b * 255;
+    }
   }
   ctx.putImageData(data, 0, 0);
   const out = new CanvasTexture(canvas);
@@ -87,9 +123,11 @@ export function paintedTextureMaterial(model: CarModel, paintId: string | null):
   if (!item || !model.texture) return undefined;
   let byPaint = paintedCache.get(model.texture);
   if (!byPaint) paintedCache.set(model.texture, (byPaint = new Map()));
-  let m = byPaint.get(item.id);
-  if (!m) byPaint.set(item.id, (m = texturedMaterial(repaint(model.texture, item.color), item.metallic)));
-  return m;
+  if (!byPaint.has(item.id)) {
+    const tex = repaint(model.texture, item.color, model.paintRect);
+    byPaint.set(item.id, tex ? texturedMaterial(tex, item.metallic) : null);
+  }
+  return byPaint.get(item.id) ?? undefined;
 }
 
 const box = (w: number, h: number, d: number, x: number, y: number, z: number) =>

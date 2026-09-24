@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import {
   BufferAttribute,
   Box3,
+  CanvasTexture,
+  ClampToEdgeWrapping,
+  SRGBColorSpace,
   Matrix4,
   MeshStandardMaterial,
   Vector3,
@@ -13,6 +16,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useGLTF } from '@react-three/drei';
 import { CAR, CARS, type CarId } from '@game/shared';
+import { useCarChoice } from '../../store/carChoice';
 
 /**
  * Mashina modellari (client/public/model/, ro'yxat: CARS): Kenney Racing Kit baggilari va teksturali modellar.
@@ -45,8 +49,10 @@ export interface CarModel {
   /** Korpus va g'ildirak materiallari (Kenney — umumiy vertex-rangli, teksturali — o'z materiali) */
   bodyMaterial: MeshStandardMaterial;
   wheelMaterial: MeshStandardMaterial;
-  /** Teksturali model: asl rang teksturasi (bo'yoq tuningi uni qayta bo'yaydi) */
+  /** Teksturali model: asl rang teksturasi (bir nechta bo'lsa — atlas; bo'yoq tuningi uni qayta bo'yaydi) */
   texture: Texture | null;
+  /** Teksturada kuzov bo'yog'i joylashgan qism (uv: u0, v0, u1, v1) — qayta bo'yash faqat shu yerda */
+  paintRect: [number, number, number, number];
   /** Vizual g'ildiraklar fizika nuqtasidan shuncha pastda (asl proporsiyadagi kichik g'ildiraklar yerga tegishi uchun) */
   wheelDrop: number;
   /** Korpus chegaralari (mashina lokal koordinatalarida) — spoyler va neon joylashuvi uchun */
@@ -87,11 +93,15 @@ const FIXED_MATERIALS = ['carTire', 'glass'];
 const isFixed = (m: Mesh) => FIXED_MATERIALS.includes((m.material as MeshStandardMaterial).name);
 const textureOf = (m: Mesh) => (m.material as MeshStandardMaterial).map;
 
+/** Teksturani atlasdagi katakka o'tkazish: (u, v) → (u', v'); teksturasiz qism uchun — oq katak */
+type UvMap = (mesh: Mesh) => ((u: number, v: number) => [number, number]) | null;
+
 /**
  * Dunyo koordinatalariga o'tkazilgan, indekssiz, material rangidagi vertex rangli nusxa.
- * `keepUv` — teksturali model: uv saqlanadi (teksturasiz qismlarga nol uv, rangni vertex rang beradi).
+ * `keepUv` — teksturali model: uv saqlanadi (teksturasiz qismlarga nol uv, rangni vertex rang beradi);
+ * `uvMap` — bir nechta teksturali model: uv atlasdagi katakka o'tkaziladi.
  */
-function bake(mesh: Mesh, extra: Matrix4, keepUv: boolean) {
+function bake(mesh: Mesh, extra: Matrix4, keepUv: boolean, uvMap?: UvMap) {
   let g = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld).applyMatrix4(extra);
   // Ba'zi modellarda (masalan, obj2gltf eksporti) normallar yo'q — yorug'liksiz qop-qora chiqardi.
   // Indekslangan holda hisoblanadi: umumiy uchlarda silliq soyalanish
@@ -101,7 +111,15 @@ function bake(mesh: Mesh, extra: Matrix4, keepUv: boolean) {
     if (name !== 'position' && name !== 'normal' && !(keepUv && name === 'uv')) g.deleteAttribute(name);
   }
   const count = g.attributes.position.count;
-  if (keepUv && !g.attributes.uv) g.setAttribute('uv', new BufferAttribute(new Float32Array(count * 2), 2));
+  if (keepUv && (!g.attributes.uv || !textureOf(mesh))) g.setAttribute('uv', new BufferAttribute(new Float32Array(count * 2), 2));
+  const remap = uvMap?.(mesh);
+  if (remap) {
+    const uv = g.attributes.uv;
+    for (let i = 0; i < count; i++) {
+      const [u, v] = remap(uv.getX(i), uv.getY(i));
+      uv.setXY(i, u, v);
+    }
+  }
   const c = (mesh.material as MeshStandardMaterial).color;
   const colors = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) colors.set([c.r, c.g, c.b], i * 3);
@@ -151,9 +169,18 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
     .makeScale(wheelScale, wheelScale, wheelScale)
     .multiply(new Matrix4().makeTranslation(-fl.center.x, -fl.center.y, -fl.center.z));
 
-  // Teksturali model: bitta tekstura (atlas), g'ildirak ham shu teksturada — disk alohida bo'yalmaydi
-  const texture = meshes.map(textureOf).find((t) => t) ?? null;
+  // Teksturali model: g'ildirak ham teksturada — disk alohida bo'yalmaydi. Bir nechta tekstura bo'lsa — atlasga
+  // yig'iladi (bitta material, bitta draw call; bo'yoq tuningi ham bitta teksturada ishlaydi)
+  const textures = [...new Set(meshes.map(textureOf).filter((t): t is Texture => !!t))];
+  const atlas = textures.length > 1 ? buildAtlas(textures) : null;
+  const texture = atlas?.texture ?? textures[0] ?? null;
   const textured = texture !== null;
+  const uvMap: UvMap | undefined = atlas ? (m) => atlas.map(textureOf(m)) : undefined;
+  // Kuzov bo'yog'i — eng katta bo'yaladigan meshning teksturasida
+  const paintMesh = meshes
+    .filter((m) => partName(m) === 'body' && !isFixed(m) && textureOf(m))
+    .sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count)[0];
+  const paintRect = (paintMesh && atlas?.rect(textureOf(paintMesh)!)) || ([0, 0, 1, 1] as [number, number, number, number]);
 
   const paint: BufferGeometry[] = [];
   const bodyRest: BufferGeometry[] = [];
@@ -161,8 +188,8 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
   const tire: BufferGeometry[] = [];
   for (const m of meshes) {
     const part = partName(m);
-    if (part === 'body') (isFixed(m) ? bodyRest : paint).push(bake(m, bodyFit, textured));
-    else if (part === 'wheelFrontLeft') (isFixed(m) || textured ? tire : rim).push(bake(m, wheelFit, textured));
+    if (part === 'body') (isFixed(m) ? bodyRest : paint).push(bake(m, bodyFit, textured, uvMap));
+    else if (part === 'wheelFrontLeft') (isFixed(m) || textured ? tire : rim).push(bake(m, wheelFit, textured, uvMap));
   }
   if (!paint.length || !bodyRest.length || !tire.length || (!textured && !rim.length)) {
     throw new Error('Mashina modeli kutilgan tuzilmada emas');
@@ -180,9 +207,53 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
     bodyMaterial: textured ? texturedMaterial(texture) : bodyMaterial,
     wheelMaterial: textured ? texturedMaterial(texture) : wheelMaterial,
     texture,
+    paintRect,
     wheelDrop,
     bounds: body.boundingBox!.clone(),
     wheelX: (Math.abs(fl.center.x - fr.center.x) / 2) * scale,
+  };
+}
+
+/** Atlas katagi (piksel); o'lcham manba teksturalariga qarab, maksimal ATLAS_CELL */
+const ATLAS_CELL = 512;
+/** Katak chetidan ichkariga (uv ulushi) — qo'shni katak rangi "oqib" kirmasligi uchun */
+const ATLAS_INSET = 0.004;
+
+/**
+ * Bir nechta teksturani bitta kanvasga (g×g katak) yig'ish; oxirgi katak — oq (teksturasiz qismlar vertex rangda).
+ * glTF uv'da (0, 0) — rasmning chap-tepa burchagi (flipY = false), kanvas ham shunday.
+ */
+function buildAtlas(textures: Texture[]) {
+  const g = Math.ceil(Math.sqrt(textures.length + 1));
+  const cell = Math.min(ATLAS_CELL, Math.max(...textures.map((t) => (t.image as { width: number }).width)));
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = g * cell;
+  const ctx = canvas.getContext('2d')!;
+  textures.forEach((t, i) => ctx.drawImage(t.image as CanvasImageSource, (i % g) * cell, Math.floor(i / g) * cell, cell, cell));
+  const white = textures.length;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect((white % g) * cell, Math.floor(white / g) * cell, cell, cell);
+
+  const texture = new CanvasTexture(canvas);
+  texture.flipY = false;
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  const cellOf = (t: Texture | null) => (t ? textures.indexOf(t) : white);
+  const k = 1 - 2 * ATLAS_INSET;
+  return {
+    texture,
+    map: (t: Texture | null) => {
+      const i = cellOf(t);
+      const col = i % g;
+      const row = Math.floor(i / g);
+      if (!t) return () => [(col + 0.5) / g, (row + 0.5) / g] as [number, number];
+      return (u: number, v: number) => [(col + ATLAS_INSET + u * k) / g, (row + ATLAS_INSET + v * k) / g] as [number, number];
+    },
+    rect: (t: Texture): [number, number, number, number] => {
+      const i = cellOf(t);
+      return [(i % g) / g, Math.floor(i / g) / g, (i % g + 1) / g, (Math.floor(i / g) + 1) / g];
+    },
   };
 }
 
@@ -198,8 +269,13 @@ export function useCarModel(car: CarId): CarModel {
   }, [scene, car]);
 }
 
-// Hammasi kichik (Kenney ~100 KB, superkar ~0.5 MB) — boshqa o'yinchilar mashinasi ham kutilmasdan chiqadi
-for (const c of CARS) useGLTF.preload(modelUrl(c.id));
+/**
+ * Oldindan yuklash: Kenney baggilari (kichik, ~100 KB) doim; qolganlari (0.3–0.5 MB) — tanlanganda (menyu) yoki
+ * kerak bo'lganda (boshqa o'yinchi, bot). Har mashina o'z Suspense'ida chiziladi — yuklanayotgan model dunyoni to'xtatmaydi.
+ */
+export const preloadCar = (car: CarId) => useGLTF.preload(modelUrl(car));
+for (const c of CARS) if (!c.realWheels) preloadCar(c.id);
+preloadCar(useCarChoice.getState().car);
 
 export const bodyMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
 export const wheelMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });

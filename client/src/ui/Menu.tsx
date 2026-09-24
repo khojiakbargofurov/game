@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CARS, ROOM } from '@game/shared';
 import { createRoom, joinRoom, loadName, startSolo } from '../net/session';
 import { useCarChoice } from '../store/carChoice';
@@ -7,6 +7,7 @@ import { MAX_BOTS, useMenuChoice } from '../store/raceSettings';
 import { DIFFICULTIES } from '../game/bots/botDriver';
 import { Garage } from './Garage';
 import { CarIcon } from './CarIcon';
+import { preloadCar } from '../game/car/carGeometry';
 import { RaceSettingsPicker } from './RaceSettingsPicker';
 import { useNetStore } from '../store/netStore';
 import { QUALITY_LABELS, useQuality, type Quality } from '../store/quality';
@@ -102,6 +103,12 @@ export function Menu() {
 /** Mashina tanlash: 4 ta model, tanlov brauzerda saqlanadi va onlayn xonaga yuboriladi */
 function CarPicker() {
   const car = useCarChoice((s) => s.car);
+  // Mashinalar ko'p (aylantiriladigan qator) — tanlangani ko'rinib tursin
+  const active = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // Yangi brauzerlarda scrollIntoView Promise qaytaradi — effect'dan qaytarilmasin (React uni tozalash deb chaqirardi)
+    active.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, []);
   const setCar = useCarChoice((s) => s.setCar);
   const look = useGarage((s) => s.look);
   return (
@@ -111,8 +118,10 @@ function CarPicker() {
           key={c.id}
           role="radio"
           aria-checked={c.id === car}
+          ref={c.id === car ? active : undefined}
           className={c.id === car ? 'active' : undefined}
           onClick={() => setCar(c.id)}
+          onPointerEnter={() => preloadCar(c.id)}
         >
           <CarIcon color={c.color} shape={c.icon} look={c.id === car ? look : undefined} />
           <span>{c.label}</span>

@@ -669,10 +669,18 @@ body,
 
 .car-picker {
   display: grid;
-  /* Mashinalar soni o'zgarsa ham bitta qatorda */
+  /* Mashinalar ko'p — bitta aylantiriladigan qator */
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: 66px;
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.car-picker button {
+  scroll-snap-align: start;
 }
 
 .car-picker button {
