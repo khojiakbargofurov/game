@@ -79,6 +79,12 @@ npm run test:interp -w client # snapshot interpolyatsiya testlari
 npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara, Rapier collider)
 ```
 
+## Mashinalar
+
+Menyuda 4 ta mashinadan biri tanlanadi: Qizil, Yashil, To'q sariq, Oq (Kenney Racing Kit, `client/public/model/`).
+Tanlov brauzerda saqlanadi; onlayn xonada boshqa o'yinchilar ham sizning mashinangizni ko'radi.
+Ro'yxat — `shared/src/config.ts` dagi `CARS`. Fizika hamma mashinada bir xil (adolatli poyga).
+
 ## Multiplayer
 
 1. Menyuda ism kiriting → **Xona yaratish** → 6 belgili kod chiqadi.
@@ -92,6 +98,7 @@ Bitta kompyuterda sinash uchun: ikkinchi brauzer oynasi yoki test-bot:
 ```bash
 npm run bot -w server -- ABC123                 # xonaga bot qo'shish (marshrut bo'ylab haydaydi)
 npm run bot -w server -- ABC123 --speed 25 --name Botir
+npm run bot -w server -- ABC123 --car orange    # bot mashinasi (red | green | orange | white)
 npm run bot -w server -- ABC123 --cheat         # anti-cheat sinovi
 ```
 

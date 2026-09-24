@@ -638,3 +638,35 @@ body,
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+.car-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.car-picker button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #efe0cc !important;
+  color: #8a6a50;
+  font-size: 12px;
+}
+
+.car-picker button.active {
+  border-color: #e0572b;
+  background: #fff !important;
+  color: #3a2618;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.car-picker svg {
+  width: 100%;
+  max-width: 64px;
+  height: auto;
+}

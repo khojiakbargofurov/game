@@ -5,6 +5,7 @@
  *   npm run bot -w server -- ABC123            # mavjud xonaga qo'shilish
  *   npm run bot -w server -- --create          # xona yaratish (kod konsolga chiqadi)
  *   npm run bot -w server -- ABC123 --speed 25 --name Bot2
+ *   npm run bot -w server -- ABC123 --car orange   (red | green | orange | white)
  *   npm run bot -w server -- ABC123 --cheat    # anti-cheat sinovi: vaqti-vaqti bilan oldinga "sakraydi"
  */
 import { io, type Socket } from 'socket.io-client';
@@ -32,6 +33,7 @@ const url = option('url', `http://localhost:${NET.DEFAULT_PORT}`);
 const name = option('name', `Bot-${Math.floor(Math.random() * 90 + 10)}`);
 const speed = Number(option('speed', '18'));
 const cheat = flag('cheat');
+const car = option('car', 'red');
 
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(url);
 
@@ -50,8 +52,8 @@ socket.on('connect', () => {
     }
     console.log(`[${name}] xona: ${res.data!.code}`);
   };
-  if (code) socket.emit('room:join', { code, name }, done as never);
-  else if (flag('create')) socket.emit('room:create', { name }, done as never);
+  if (code) socket.emit('room:join', { code, name, car } as never, done as never);
+  else if (flag('create')) socket.emit('room:create', { name, car } as never, done as never);
   else {
     console.error('Xona kodi yoki --create kerak');
     process.exit(1);

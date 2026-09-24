@@ -1,3 +1,4 @@
+import type { CarId } from './config';
 import type { NetState, PlayerState, RaceResult, RoomInfo } from './types';
 
 /**
@@ -12,8 +13,8 @@ export type AckResult<T> = { ok: true; data: T } | { ok: false; error: string };
 export type Ack<T> = (res: AckResult<T>) => void;
 
 export interface ClientToServerEvents {
-  'room:create': (payload: { name: string }, ack: Ack<RoomInfo>) => void;
-  'room:join': (payload: { code: string; name: string }, ack: Ack<RoomInfo>) => void;
+  'room:create': (payload: { name: string; car?: CarId }, ack: Ack<RoomInfo>) => void;
+  'room:join': (payload: { code: string; name: string; car?: CarId }, ack: Ack<RoomInfo>) => void;
   'room:leave': () => void;
   /** Faqat xona egasi: poyga tugagach xonani lobby holatiga qaytarish (`start` — darhol yangi poyga) */
   'room:reset': (payload: { start: boolean }, ack: Ack<null>) => void;

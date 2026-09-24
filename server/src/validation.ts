@@ -1,4 +1,4 @@
-import { ROOM, type NetState, type Quat, type Vec3 } from '@game/shared';
+import { DEFAULT_CAR, ROOM, isCarId, type CarId, type NetState, type Quat, type Vec3 } from '@game/shared';
 
 /** Klientdan kelgan ma'lumotlarga ishonmaymiz — har bir payload tekshiriladi */
 
@@ -36,4 +36,9 @@ export function normalizeCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const code = raw.trim().toUpperCase();
   return code.length === ROOM.CODE_LENGTH ? code : null;
+}
+
+/** Noma'lum yoki yo'q mashina — standart mashina (eski klientlar ham ishlayveradi) */
+export function parseCar(raw: unknown): CarId {
+  return isCarId(raw) ? raw : DEFAULT_CAR;
 }

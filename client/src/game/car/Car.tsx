@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, useBeforePhysicsStep, type RapierRigidBody } from '@react-three/rapier';
 import { Euler, Quaternion, Vector3, type Group } from 'three';
-import { CAR, COLORS, WORLD, nearestOnRoute, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
+import { CAR, WORLD, nearestOnRoute, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
 import { attachKeyboard, consumeRespawn, input } from '../../input/keyboard';
 import { useGameStore } from '../../store/gameStore';
 import { controlsEnabled, useNetStore } from '../../store/netStore';
@@ -10,6 +10,7 @@ import { carTarget } from '../carTarget';
 import { CarBody } from './CarBody';
 import { Wheel } from './Wheel';
 import { useCarModel } from './carGeometry';
+import { useCarChoice } from '../../store/carChoice';
 import { computeDrive } from './driveLogic';
 import { useVehicleController } from './useVehicleController';
 import { WHEEL_COUNT, applyDriveCommand } from './vehicleSetup';
@@ -88,7 +89,13 @@ function uprightness(rb: RapierRigidBody) {
  * render kadrida g'ildirak vizuallari va kamera/HUD/tarmoq uchun `carTarget` yangilanadi.
  */
 export function Car() {
-  const { wheelX } = useCarModel();
+  // Onlayn rejimda server tasdiqlagan mashina, yakkada — menyudagi tanlov
+  const chosen = useCarChoice((s) => s.car);
+  const car = useNetStore((s) => {
+    const me = s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined;
+    return me ? me.car : chosen;
+  });
+  const { wheelX } = useCarModel(car);
   const body = useRef<RapierRigidBody>(null);
   const anchor = useRef<Group>(null);
   const wheels = useRef<(Group | null)[]>([]);
@@ -168,11 +175,6 @@ export function Car() {
     carTarget.velocity.set(lv.x, lv.y, lv.z);
   });
 
-  // Onlayn rejimda o'z slotimiz rangi, yakkada — standart
-  const color = useNetStore((s) => {
-    const me = s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined;
-    return me ? me.color : COLORS.car;
-  });
   // Boshlang'ich joy faqat bir marta olinadi. MUHIM: r3/rapier `position`/`rotation` prop'lari o'zgarib
   // komponent qayta render bo'lsa, body'ni o'sha joyga ko'chiradi (tezlik saqlangan holda). Agar bu yerda
   // joriy respawnPoint berilsa, har qanday qayta renderda (masalan, PerformanceMonitor DPR'ni o'zgartirganda)
@@ -193,9 +195,9 @@ export function Car() {
     >
       <CuboidCollider args={[HX, HY, HZ]} massProperties={MASS_PROPS} friction={0.3} />
       <group ref={anchor} />
-      <CarBody color={color} />
+      <CarBody car={car} />
       {CAR.WHEEL_POSITIONS.map(([x], i) => (
-        <Wheel key={i} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
+        <Wheel key={i} car={car} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
       ))}
     </RigidBody>
   );

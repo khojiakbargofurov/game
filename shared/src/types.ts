@@ -1,3 +1,5 @@
+import type { CarId } from './config';
+
 export type Vec3 = [number, number, number];
 /** Kvaternion [x, y, z, w] */
 export type Quat = [number, number, number, number];
@@ -20,7 +22,10 @@ export interface PlayerState extends NetState {
 export interface PlayerInfo {
   id: string;
   name: string;
+  /** O'yinchi rangi (slot bo'yicha) — ism yorlig'i, mini-xarita, natijalar */
   color: string;
+  /** Tanlangan mashina */
+  car: CarId;
   isHost: boolean;
   /** Start panjarasidagi joy (0..MAX_PLAYERS-1) */
   slot: number;

@@ -2,27 +2,24 @@ import { useMemo } from 'react';
 import { BufferAttribute, Box3, Matrix4, MeshStandardMaterial, Vector3, type BufferGeometry, type Mesh, type Object3D } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useGLTF } from '@react-three/drei';
-import { CAR } from '@game/shared';
+import { CAR, CARS, type CarId } from '@game/shared';
 
 /**
- * Mashina modeli — Kenney Racing Kit `raceCarRed.glb` (client/public/model/).
+ * Mashina modellari — Kenney Racing Kit (client/public/model/, ro'yxat: CARS).
  * Yuklangandan keyin bo'laklar birlashtiriladi (kam draw call):
- *  - paint:  korpusning `red` materialli qismi — o'yinchi rangiga bo'yaladi
- *  - detail: korpusning qolgan qismlari (shina rangli detallar, oyna, kulrang) — vertex rang
- *  - wheel:  bitta g'ildirak (shina + disk), markazi koordinata boshida, o'qi X bo'ylab, disk +X tomonda
+ *  - body:  butun korpus — material ranglari vertex rangga o'tkaziladi (1 draw call)
+ *  - wheel: bitta g'ildirak (shina + disk), markazi koordinata boshida, o'qi X bo'ylab, disk +X tomonda
  * Model fizikaga moslanadi: g'ildiraklar orasi (old-orqa) = CAR.WHEEL_POSITIONS, g'ildirak radiusi = CAR.WHEEL_RADIUS.
  * Fizika (collider, g'ildirak ulanish nuqtalari) o'zgarmaydi — bu faqat vizual.
  */
 
-const MODEL_URL = `${import.meta.env.BASE_URL}model/raceCarRed.glb`;
-const PAINT_MATERIAL = 'red';
+const modelUrl = (car: CarId) => `${import.meta.env.BASE_URL}model/${CARS.find((c) => c.id === car)!.model}`;
 
 /** Tinch holatda g'ildirak markazi shassiga nisbatan (RemoteCars dagi taxmin bilan bir xil) */
 export const WHEEL_REST_Y = CAR.WHEEL_POSITIONS[0][1] - CAR.SUSPENSION_REST_LENGTH * 0.55;
 
 export interface CarModel {
-  paint: BufferGeometry;
-  detail: BufferGeometry;
+  body: BufferGeometry;
   wheel: BufferGeometry;
   /** Vizual g'ildiraklarning X masofasi (model proporsiyasi bo'yicha; fizika nuqtalaridan torroq) */
   wheelX: number;
@@ -86,23 +83,17 @@ function buildCarModel(scene: Object3D): CarModel {
     .makeScale(wheelScale, wheelScale, wheelScale)
     .multiply(new Matrix4().makeTranslation(-fl.center.x, -fl.center.y, -fl.center.z));
 
-  const paint: BufferGeometry[] = [];
-  const detail: BufferGeometry[] = [];
+  const body: BufferGeometry[] = [];
   const wheel: BufferGeometry[] = [];
   for (const m of meshes) {
     const part = partName(m);
-    if (part === 'body') {
-      const isPaint = (m.material as MeshStandardMaterial).name === PAINT_MATERIAL;
-      (isPaint ? paint : detail).push(bake(m, bodyFit));
-    } else if (part === 'wheelFrontLeft') {
-      wheel.push(bake(m, wheelFit));
-    }
+    if (part === 'body') body.push(bake(m, bodyFit));
+    else if (part === 'wheelFrontLeft') wheel.push(bake(m, wheelFit));
   }
-  if (!paint.length || !detail.length || !wheel.length) throw new Error(`Mashina modeli kutilgan tuzilmada emas: ${MODEL_URL}`);
+  if (!body.length || !wheel.length) throw new Error('Mashina modeli kutilgan tuzilmada emas');
 
   return {
-    paint: merge(paint),
-    detail: merge(detail),
+    body: merge(body),
     wheel: merge(wheel),
     wheelX: (Math.abs(fl.center.x - fr.center.x) / 2) * scale,
   };
@@ -110,9 +101,9 @@ function buildCarModel(scene: Object3D): CarModel {
 
 const cache = new WeakMap<Object3D, CarModel>();
 
-/** Mashina modeli (Suspense bilan yuklanadi; barcha mashinalar bitta geometriyani bo'lishadi) */
-export function useCarModel(): CarModel {
-  const { scene } = useGLTF(MODEL_URL);
+/** Mashina modeli (Suspense bilan yuklanadi; bir xil mashinalar bitta geometriyani bo'lishadi) */
+export function useCarModel(car: CarId): CarModel {
+  const { scene } = useGLTF(modelUrl(car));
   return useMemo(() => {
     let model = cache.get(scene);
     if (!model) cache.set(scene, (model = buildCarModel(scene)));
@@ -120,7 +111,8 @@ export function useCarModel(): CarModel {
   }, [scene]);
 }
 
-useGLTF.preload(MODEL_URL);
+// Hammasi kichik (~100 KB) — boshqa o'yinchilar mashinasi ham kutilmasdan chiqadi
+for (const c of CARS) useGLTF.preload(modelUrl(c.id));
 
-export const detailMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
+export const bodyMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
 export const wheelMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });

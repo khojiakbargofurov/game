@@ -20,7 +20,7 @@ const HIDDEN = { x: 0, y: -500, z: 0 };
  * Kinematik rigid body — o'z mashinamiz unga urilishi mumkin (u esa bizni itaradi, lekin fizikasi yo'q).
  */
 function RemoteCar({ player }: { player: PlayerInfo }) {
-  const { wheelX } = useCarModel();
+  const { wheelX } = useCarModel(player.car);
   const body = useRef<RapierRigidBody>(null);
   const visual = useRef<Group>(null);
   const wheels = useRef<(Group | null)[]>([]);
@@ -51,10 +51,10 @@ function RemoteCar({ player }: { player: PlayerInfo }) {
     <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[0, -500, 0]}>
       <CuboidCollider args={[HX, HY, HZ]} />
       <group ref={visual} visible={false}>
-        <CarBody color={player.color} />
+        <CarBody car={player.car} />
         {CAR.WHEEL_POSITIONS.map(([x, , z], i) => (
           <group key={i} position={[Math.sign(x) * wheelX, WHEEL_REST_Y, z]}>
-            <Wheel right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
+            <Wheel car={player.car} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
           </group>
         ))}
         <NameTag name={player.name} color={player.color} />

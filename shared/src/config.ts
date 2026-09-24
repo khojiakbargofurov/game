@@ -25,6 +25,24 @@ export const ROOM = {
   COUNTDOWN_SECONDS: 3,
 } as const;
 
+/**
+ * Tanlanadigan mashinalar (Kenney Racing Kit, client/public/model/). Shakli bir xil, rangi farq qiladi.
+ * `color` — menyudagi namuna rangi (modeldagi korpus rangi).
+ */
+export const CARS = [
+  { id: 'red', label: 'Qizil', model: 'raceCarRed.glb', color: '#e85454' },
+  { id: 'green', label: 'Yashil', model: 'raceCarGreen.glb', color: '#4d8f6e' },
+  { id: 'orange', label: "To'q sariq", model: 'raceCarOrange.glb', color: '#f5ba42' },
+  { id: 'white', label: 'Oq', model: 'raceCarWhite.glb', color: '#f2f2f4' },
+] as const;
+
+export type CarId = (typeof CARS)[number]['id'];
+export const DEFAULT_CAR: CarId = 'red';
+
+export function isCarId(v: unknown): v is CarId {
+  return CARS.some((c) => c.id === v);
+}
+
 export const RACE = {
   /** Birinchi o'yinchi marraga yetgach, qolganlarga shuncha vaqt beriladi */
   FINISH_GRACE_MS: 45_000,

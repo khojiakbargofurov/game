@@ -1,8 +1,9 @@
-import { ROOM, gridSpawn, type NetState, type PlayerInfo, type PlayerState, type RoomInfo, type RoomPhase } from '@game/shared';
+import { ROOM, gridSpawn, type CarId, type NetState, type PlayerInfo, type PlayerState, type RoomInfo, type RoomPhase } from '@game/shared';
 
 export interface ServerPlayer {
   id: string;
   name: string;
+  car: CarId;
   slot: number;
   /** Oxirgi qabul qilingan holat va qabul qilingan vaqti (server ms) */
   last: { state: NetState; at: number } | null;
@@ -53,7 +54,7 @@ export class RoomManager {
   /** socket.id → xona kodi */
   private membership = new Map<string, string>();
 
-  create(playerId: string, name: string): Room {
+  create(playerId: string, name: string, car: CarId): Room {
     let code = randomCode();
     while (this.rooms.has(code)) code = randomCode();
     const room: Room = {
@@ -66,21 +67,21 @@ export class RoomManager {
       timers: [],
     };
     this.rooms.set(code, room);
-    this.addPlayer(room, playerId, name);
+    this.addPlayer(room, playerId, name, car);
     return room;
   }
 
-  join(code: string, playerId: string, name: string): Room | JoinError {
+  join(code: string, playerId: string, name: string, car: CarId): Room | JoinError {
     const room = this.rooms.get(code);
     if (!room) return 'not_found';
     if (room.phase !== 'lobby') return 'in_progress';
     if (room.players.size >= ROOM.MAX_PLAYERS) return 'full';
-    this.addPlayer(room, playerId, name);
+    this.addPlayer(room, playerId, name, car);
     return room;
   }
 
-  private addPlayer(room: Room, id: string, name: string) {
-    room.players.set(id, { id, name, slot: freeSlot(room), last: null, nextCheckpoint: 0, finishTimeMs: null, coins: new Set() });
+  private addPlayer(room: Room, id: string, name: string, car: CarId) {
+    room.players.set(id, { id, name, car, slot: freeSlot(room), last: null, nextCheckpoint: 0, finishTimeMs: null, coins: new Set() });
     this.membership.set(id, room.code);
   }
 
@@ -159,6 +160,7 @@ export function roomInfo(room: Room): RoomInfo {
     .map((p) => ({
       id: p.id,
       name: p.name,
+      car: p.car,
       slot: p.slot,
       color: ROOM.PLAYER_COLORS[p.slot % ROOM.PLAYER_COLORS.length],
       isHost: p.id === room.hostId,

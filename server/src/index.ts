@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import { NET, RACE, ROOM, type ClientToServerEvents, type ServerToClientEvents } from '@game/shared';
 import { RoomManager, roomInfo, snapshotOf, type Room } from './rooms';
-import { normalizeCode, parseNetState, sanitizeName } from './validation';
+import { normalizeCode, parseCar, parseNetState, sanitizeName } from './validation';
 import { validateMove } from './antiCheat';
 import { collectCoin, passCheckpoint, results, shouldEnd, standings } from './race';
 
@@ -99,7 +99,7 @@ io.on('connection', (socket: GameSocket) => {
       const name = sanitizeName(payload?.name);
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       leaveRoom(socket);
-      const room = rooms.create(socket.id, name);
+      const room = rooms.create(socket.id, name, parseCar(payload?.car));
       socket.join(room.code);
       console.log(`[room] ${room.code} yaratildi (${name})`);
       ack({ ok: true, data: roomInfo(room) });
@@ -115,7 +115,7 @@ io.on('connection', (socket: GameSocket) => {
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       if (!code) return ack({ ok: false, error: `Kod ${ROOM.CODE_LENGTH} belgidan iborat bo'lishi kerak` });
       leaveRoom(socket);
-      const result = rooms.join(code, socket.id, name);
+      const result = rooms.join(code, socket.id, name, parseCar(payload?.car));
       if (typeof result === 'string') return ack({ ok: false, error: JOIN_ERRORS[result] });
       socket.join(code);
       console.log(`[room] ${code}: ${name} qo'shildi (${result.players.size} o'yinchi)`);

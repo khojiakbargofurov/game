@@ -1,6 +1,7 @@
 import { CHECKPOINTS, ROOM, START, gridSpawn, type AckResult, type RoomInfo, type SpawnPoint } from '@game/shared';
 import { requestRespawn } from '../input/keyboard';
 import { useGameStore } from '../store/gameStore';
+import { useCarChoice } from '../store/carChoice';
 import { useNetStore } from '../store/netStore';
 import { resetPickups } from '../store/pickups';
 import { whenWorldReady } from '../store/loadState';
@@ -70,12 +71,12 @@ function onRoomJoined(res: AckResult<RoomInfo>, name: string) {
 
 export function createRoom(name: string) {
   useNetStore.setState({ busy: true, error: null });
-  socket.emit('room:create', { name }, (res) => onRoomJoined(res, name));
+  socket.emit('room:create', { name, car: useCarChoice.getState().car }, (res) => onRoomJoined(res, name));
 }
 
 export function joinRoom(code: string, name: string) {
   useNetStore.setState({ busy: true, error: null });
-  socket.emit('room:join', { code, name }, (res) => onRoomJoined(res, name));
+  socket.emit('room:join', { code, name, car: useCarChoice.getState().car }, (res) => onRoomJoined(res, name));
 }
 
 export function startOnlineRace() {
