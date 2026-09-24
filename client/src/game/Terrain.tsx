@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { RigidBody, TrimeshCollider } from '@react-three/rapier';
 import { BufferAttribute, BufferGeometry, Color, MeshStandardMaterial, PlaneGeometry, Vector3 } from 'three';
-import { COLORS, WORLD, sampleTerrain, type TerrainSample } from '@game/shared';
+import { COLORS, WORLD, type Palette, type TerrainSample, type Track } from '@game/shared';
+import { usePalette, useTrack } from '../store/raceSettings';
 
 /** Har bir uchi uchun rang tanlashda kerak bo'ladigan ma'lumotlar */
 interface VertexInfo {
@@ -11,7 +12,7 @@ interface VertexInfo {
   offRoad: Float32Array; // yo'l chetidan masofa (dist - halfWidth)
 }
 
-function buildHeightGeometry() {
+function buildHeightGeometry({ sampleTerrain }: Track) {
   const { TERRAIN_SIZE: size, TERRAIN_SEGMENTS: segs } = WORLD;
   const geo = new PlaneGeometry(size, size, segs, segs);
   geo.rotateX(-Math.PI / 2);
@@ -34,13 +35,21 @@ function buildHeightGeometry() {
   return { geo, info };
 }
 
-const C = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [k, new Color(v)])) as Record<
-  keyof typeof COLORS,
-  Color
->;
+type Colors = Record<keyof typeof COLORS, Color>;
+const colorCache = new WeakMap<Palette, Colors>();
+
+/** Fasl palitrasi → three.js Color obyektlari (bir marta) */
+function colorsOf(palette: Palette): Colors {
+  let c = colorCache.get(palette);
+  if (!c) {
+    c = Object.fromEntries(Object.keys(COLORS).map((k) => [k, new Color(palette[k as keyof typeof COLORS])])) as Colors;
+    colorCache.set(palette, c);
+  }
+  return c;
+}
 
 /** Uchburchak rangi: zona, balandlik, qiyalik va yo'lga yaqinlikka qarab (low-poly uslubi) */
-function faceColor(canyon: number, ruins: number, above: number, offRoad: number, slope: number, out: Color) {
+function faceColor(C: Colors, canyon: number, ruins: number, above: number, offRoad: number, slope: number, out: Color) {
   if (above < -9) return out.copy(slope > 0.5 ? C.rock : C.riverbed); // jarlik tubi
   if (offRoad < 0.5 && Math.abs(above) < 0.5) {
     return out.copy(canyon > 0.5 ? C.roadCanyon : ruins > 0.5 ? C.roadRuins : C.roadForest);
@@ -67,7 +76,7 @@ const CHUNKS = 5;
  * Indekssiz (flat shading) vizual geometriya: har bir uchburchak bitta rangda.
  * Uchburchaklar markaziga qarab CHUNKS×CHUNKS bo'lakka taqsimlanadi.
  */
-function buildVisualChunks(base: PlaneGeometry, info: VertexInfo): BufferGeometry[] {
+function buildVisualChunks(base: PlaneGeometry, info: VertexInfo, C: Colors): BufferGeometry[] {
   const src = base.attributes.position as BufferAttribute;
   const index = base.index!.array;
   const half = WORLD.TERRAIN_SIZE / 2;
@@ -97,7 +106,7 @@ function buildVisualChunks(base: PlaneGeometry, info: VertexInfo): BufferGeometr
     const n = ab.subVectors(b, a).cross(ac.subVectors(c, a)).normalize();
     const slope = 1 - Math.abs(n.y);
     const avg = (arr: Float32Array) => (arr[i0] + arr[i1] + arr[i2]) / 3;
-    faceColor(avg(info.canyon), avg(info.ruins), avg(info.above), avg(info.offRoad), slope, col);
+    faceColor(C, avg(info.canyon), avg(info.ruins), avg(info.above), avg(info.offRoad), slope, col);
     const jitter = 0.94 + ((f * 7919) % 13) / 100; // bir xil ko'rinmasligi uchun
     const k = chunkOf((a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3);
     positions[k].push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
@@ -117,14 +126,16 @@ function buildVisualChunks(base: PlaneGeometry, info: VertexInfo): BufferGeometr
 const terrainMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
 
 export function Terrain() {
+  const track = useTrack();
+  const palette = usePalette();
   const { chunks, vertices, indices } = useMemo(() => {
-    const { geo, info } = buildHeightGeometry();
+    const { geo, info } = buildHeightGeometry(track);
     return {
-      chunks: buildVisualChunks(geo, info),
+      chunks: buildVisualChunks(geo, info, colorsOf(palette)),
       vertices: geo.attributes.position.array as Float32Array,
       indices: geo.index!.array as Uint32Array,
     };
-  }, []);
+  }, [track, palette]);
 
   return (
     <RigidBody type="fixed" colliders={false}>
@@ -132,6 +143,13 @@ export function Terrain() {
       {chunks.map((geometry, i) => (
         <mesh key={i} geometry={geometry} receiveShadow material={terrainMaterial} />
       ))}
+      {track.LAKE && (
+        // Ko'l yuzasi — faqat vizual (suv ostidagi relyef collider'i bor, yo'l suvga tushmaydi)
+        <mesh position={[track.LAKE.x, track.LAKE.y, track.LAKE.z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <circleGeometry args={[track.LAKE.radius + 5, 40]} />
+          <meshStandardMaterial color={palette.water} roughness={0.2} metalness={0.1} transparent opacity={0.88} />
+        </mesh>
+      )}
     </RigidBody>
   );
 }

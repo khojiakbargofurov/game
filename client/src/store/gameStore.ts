@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { START, type SpawnPoint } from '@game/shared';
+import { DEFAULT_TRACK, getTrack, type SpawnPoint } from '@game/shared';
 
 /**
  * ready — menyu/xona (mashina turibdi), countdown — 3-2-1 (boshqaruv qulf),
@@ -39,7 +39,8 @@ const initial = {
   nextCheckpoint: 0,
   coins: 0,
   boostUntil: 0,
-  respawnPoint: START,
+  // Haqiqiy start nuqtasi har poyga boshida resetRace() bilan beriladi (tanlangan trassa bo'yicha)
+  respawnPoint: getTrack(DEFAULT_TRACK).START,
 };
 
 export const useGameStore = create<GameState>((set) => ({

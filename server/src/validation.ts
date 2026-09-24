@@ -1,4 +1,16 @@
-import { DEFAULT_CAR, ROOM, isCarId, type CarId, type NetState, type Quat, type Vec3 } from '@game/shared';
+import {
+  DEFAULT_CAR,
+  ROOM,
+  isCarId,
+  isSeason,
+  isTrackId,
+  isWeather,
+  type CarId,
+  type NetState,
+  type RaceSettings,
+  type Quat,
+  type Vec3,
+} from '@game/shared';
 
 /** Klientdan kelgan ma'lumotlarga ishonmaymiz — har bir payload tekshiriladi */
 
@@ -41,4 +53,15 @@ export function normalizeCode(raw: unknown): string | null {
 /** Noma'lum yoki yo'q mashina — standart mashina (eski klientlar ham ishlayveradi) */
 export function parseCar(raw: unknown): CarId {
   return isCarId(raw) ? raw : DEFAULT_CAR;
+}
+
+/** Faqat to'g'ri maydonlar `base` ustidan yoziladi — noma'lum qiymatlar e'tiborsiz qoldiriladi */
+export function parseSettings(raw: unknown, base: RaceSettings): RaceSettings {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    trackId: isTrackId(src.trackId) ? src.trackId : base.trackId,
+    season: isSeason(src.season) ? src.season : base.season,
+    weather: isWeather(src.weather) ? src.weather : base.weather,
+    upgradesEnabled: typeof src.upgradesEnabled === 'boolean' ? src.upgradesEnabled : base.upgradesEnabled,
+  };
 }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, Color } from 'three';
-import { BRIDGE, COLORS, ROUTE, ROUTE_STEP, roadHalfWidth, zoneWeights } from '@game/shared';
+import { ROUTE_STEP, type Palette, type Track } from '@game/shared';
+import { usePalette, useTrack } from '../../store/raceSettings';
 
 const SHOULDER = 0.9;
 const LIFT = 0.05;
@@ -10,7 +11,7 @@ const LIFT = 0.05;
  * Faqat vizual; fizika relyefda (yo'l ostidagi relyef allaqachon tekislangan).
  * Ko'prik uchastkasida chizilmaydi — u yerda ko'prik taxtalari bor.
  */
-function buildRoadGeometry() {
+function buildRoadGeometry({ ROUTE, BRIDGE, roadHalfWidth, zoneWeights }: Track, COLORS: Palette) {
   const { xs, ys, zs, txs, tzs, count } = ROUTE;
   const positions: number[] = [];
   const colors: number[] = [];
@@ -22,7 +23,7 @@ function buildRoadGeometry() {
   let prevRow = -1;
   for (let i = 0; i < count; i++) {
     const s = i * ROUTE_STEP;
-    const onBridge = s > BRIDGE.start - 1 && s < BRIDGE.end + 1;
+    const onBridge = !!BRIDGE && s > BRIDGE.start - 1 && s < BRIDGE.end + 1;
     if (onBridge) {
       prevRow = -1;
       continue;
@@ -65,7 +66,9 @@ function buildRoadGeometry() {
 }
 
 export function Road() {
-  const geometry = useMemo(buildRoadGeometry, []);
+  const track = useTrack();
+  const palette = usePalette();
+  const geometry = useMemo(() => buildRoadGeometry(track, palette), [track, palette]);
   return (
     <mesh geometry={geometry} receiveShadow>
       {/* polygonOffset — relyef bilan z-fighting bo'lmasligi uchun */}

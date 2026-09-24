@@ -10,13 +10,10 @@
  */
 import { io, type Socket } from 'socket.io-client';
 import {
-  CHECKPOINTS,
+  DEFAULT_TRACK,
   NET,
-  gridSpawn,
-  nearestOnRoute,
-  routeAt,
+  getTrack,
   yawOf,
-  ROUTE_LENGTH,
   type ClientToServerEvents,
   type NetState,
   type ServerToClientEvents,
@@ -43,6 +40,8 @@ let racing = false;
 let corrections = 0;
 let nextCheckpoint = 0;
 let spawnS = 0;
+/** Xona trassasi (host lobby'da o'zgartirishi mumkin) */
+let track = getTrack(DEFAULT_TRACK);
 
 socket.on('connect', () => {
   const done = (res: { ok: boolean; data?: { code: string }; error?: string }) => {
@@ -64,8 +63,9 @@ socket.on('room:update', (room) => {
   const me = room.players.find((p) => p.id === socket.id);
   // Start joyi faqat poygadan oldin olinadi (poyga paytidagi yangilanishlar pozitsiyani buzmasin)
   if (me && !racing) {
-    const spawn = gridSpawn(me.slot);
-    const n = nearestOnRoute(spawn.position[0], spawn.position[2]);
+    track = getTrack(room.settings.trackId);
+    const spawn = track.gridSpawn(me.slot);
+    const n = track.nearestOnRoute(spawn.position[0], spawn.position[2]);
     s = spawnS = n.s;
     lateral = n.lateral;
   }
@@ -96,7 +96,7 @@ socket.on('race:results', ({ results }) => {
 
 socket.on('player:correction', (st) => {
   corrections++;
-  const n = nearestOnRoute(st.position[0], st.position[2]);
+  const n = track.nearestOnRoute(st.position[0], st.position[2]);
   s = n.s;
   console.log(`[${name}] server tuzatdi (#${corrections}) → s=${s.toFixed(0)}`);
 });
@@ -105,13 +105,13 @@ let tick = 0;
 setInterval(() => {
   if (!racing) return;
   const dt = 1 / NET.TICK_RATE;
-  s = Math.min(ROUTE_LENGTH, s + speed * dt);
+  s = Math.min(track.ROUTE_LENGTH, s + speed * dt);
   tick++;
   // --cheat: har 3 soniyada 60 m oldinga sakrash
   if (cheat && tick % (NET.TICK_RATE * 3) === 0) s += 60;
   // Marra — to'xtaymiz
-  if (nextCheckpoint >= CHECKPOINTS.length) return;
-  const f = routeAt(s);
+  if (nextCheckpoint >= track.CHECKPOINTS.length) return;
+  const f = track.routeAt(s);
   const yaw = yawOf(f.tx, f.tz);
   const state: NetState = {
     position: [f.x + f.tz * lateral, f.y + 0.7, f.z - f.tx * lateral],
@@ -119,7 +119,7 @@ setInterval(() => {
     velocity: [f.tx * speed, 0, f.tz * speed],
   };
   socket.emit('player:state', state);
-  const cp = CHECKPOINTS[nextCheckpoint];
+  const cp = track.CHECKPOINTS[nextCheckpoint];
   if (cp && s >= cp.s) {
     socket.emit('race:checkpoint', { index: nextCheckpoint });
     nextCheckpoint++;

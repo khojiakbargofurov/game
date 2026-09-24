@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { COINS } from '@game/shared';
 import { useGameStore } from '../store/gameStore';
 import { useNetStore, usePlace } from '../store/netStore';
+import { useTrack } from '../store/raceSettings';
 import { formatTime } from './formatTime';
 
 /** Joriy poyga vaqti — o'zi ~20 Hz yangilanadi */
@@ -20,6 +20,7 @@ function useRaceTime() {
 
 /** HUD chap-tepa paneli: o'rin (onlayn), vaqt, tangalar (checkpointlar — yo'nalish ko'rsatkichida) */
 export function RaceStatus() {
+  const { COINS } = useTrack();
   const time = useRaceTime();
   const coins = useGameStore((s) => s.coins);
   const online = useNetStore((s) => s.mode === 'online');

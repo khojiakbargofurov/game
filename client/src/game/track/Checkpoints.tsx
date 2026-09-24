@@ -1,5 +1,6 @@
 import { CanvasTexture, DoubleSide, NearestFilter, SRGBColorSpace } from 'three';
-import { CHECKPOINTS, COLORS, roadHalfWidth, trackPoint, type Checkpoint } from '@game/shared';
+import { COLORS, type Checkpoint } from '@game/shared';
+import { useTrack } from '../../store/raceSettings';
 import { useGameStore } from '../../store/gameStore';
 
 const POLE_HEIGHT = 5;
@@ -7,7 +8,7 @@ const DIM = '#b9a58a';
 
 /** Oddiy checkpoint darvozasi: ikki ustun + banner. Keyingi checkpoint yorqin rangda */
 function Gate({ cp, state }: { cp: Checkpoint; state: 'next' | 'passed' | 'future' }) {
-  const span = roadHalfWidth(cp.s) + 1.3;
+  const span = useTrack().roadHalfWidth(cp.s) + 1.3;
   const color = state === 'next' ? COLORS.checkpoint : state === 'passed' ? COLORS.checkpointPassed : DIM;
   const glow = state === 'next' ? 0.8 : 0;
   return (
@@ -68,7 +69,7 @@ function Checkered({ width, depth, cols, rows }: { width: number; depth: number;
 
 /** Marra: baland ustunlar va shaxmat banner, yo'lda shaxmat chiziq */
 function FinishGate({ cp }: { cp: Checkpoint }) {
-  const span = roadHalfWidth(cp.s) + 1.5;
+  const span = useTrack().roadHalfWidth(cp.s) + 1.5;
   const h = 7;
   return (
     <group position={cp.position} rotation={[0, cp.yaw, 0]}>
@@ -90,6 +91,7 @@ function FinishGate({ cp }: { cp: Checkpoint }) {
 
 /** Start chizig'i */
 function StartLine() {
+  const { trackPoint, roadHalfWidth } = useTrack();
   const p = trackPoint(20);
   const span = roadHalfWidth(20);
   return (
@@ -103,6 +105,7 @@ function StartLine() {
 
 export function Checkpoints() {
   const next = useGameStore((s) => s.nextCheckpoint);
+  const { CHECKPOINTS } = useTrack();
   return (
     <>
       <StartLine />

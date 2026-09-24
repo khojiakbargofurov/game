@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { ConvexHullCollider, RigidBody } from '@react-three/rapier';
 import { BufferAttribute, BufferGeometry } from 'three';
-import { COLORS, RAMPS, trackPoint, zoneAt, type Ramp } from '@game/shared';
+import { COLORS, type Ramp } from '@game/shared';
+import { useTrack } from '../../store/raceSettings';
 import { roadPitch, roadQuaternion } from './trackGeometry';
 
 /** Uchburchak prizma (pona): old tomoni yerda, orqa tomoni `height` balandlikda */
@@ -36,6 +37,7 @@ const ZONE_COLOR = { forest: COLORS.wood, canyon: COLORS.canyonC, ruins: COLORS.
 
 /** Sakrash rampalari — yo'l yo'nalishi va qiyaligiga moslab joylashtiriladi */
 export function Ramps() {
+  const { RAMPS, trackPoint, zoneAt } = useTrack();
   const ramps = useMemo(
     () =>
       RAMPS.map((r) => {
@@ -52,7 +54,7 @@ export function Ramps() {
           slopeLength: Math.hypot(r.height, r.length),
         };
       }),
-    [],
+    [RAMPS, trackPoint, zoneAt],
   );
 
   return (

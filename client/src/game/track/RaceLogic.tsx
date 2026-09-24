@@ -1,10 +1,12 @@
 import { useFrame } from '@react-three/fiber';
-import { BOOSTS, BOOST_RADIUS, BOOST_RESPAWN_MS, CAR, CHECKPOINTS, COINS, COIN_RADIUS } from '@game/shared';
+import { BOOST_RADIUS, BOOST_RESPAWN_MS, COIN_RADIUS } from '@game/shared';
 import { reportCheckpoint, reportCoin } from '../../net/session';
 import { useGameStore } from '../../store/gameStore';
 import { useNetStore } from '../../store/netStore';
 import { pickups } from '../../store/pickups';
 import { carTarget } from '../carTarget';
+import { activeTrack } from '../../store/raceSettings';
+import { ownCarStats, useGarage } from '../../store/garage';
 
 const COIN_R2 = COIN_RADIUS * COIN_RADIUS;
 const BOOST_R2 = BOOST_RADIUS * BOOST_RADIUS;
@@ -31,6 +33,7 @@ export function RaceLogic() {
     }
     if (game.phase !== 'racing' && game.phase !== 'finished') return;
     const { x, y, z } = carTarget.position;
+    const { CHECKPOINTS, COINS, BOOSTS } = activeTrack();
 
     // Checkpoint: faqat navbatdagisi, gorizontal radius ichida
     const cp = CHECKPOINTS[game.nextCheckpoint];
@@ -44,7 +47,11 @@ export function RaceLogic() {
             position: [cp.position[0], cp.position[1] + 1.2, cp.position[2]],
             yaw: cp.yaw,
           });
-          if (cp.isFinish) game.finish(now);
+          if (cp.isFinish) {
+            game.finish(now);
+            // Yakka rejim: yig'ilgan tangalar garaj hamyoniga
+            useGarage.getState().deposit(useGameStore.getState().coins);
+          }
         }
       }
     }
@@ -64,7 +71,7 @@ export function RaceLogic() {
       const available = !taken || now - taken > BOOST_RESPAWN_MS;
       if (available && dist2(BOOSTS[i].position, x, y, z) < BOOST_R2) {
         pickups.boostTakenAt[i] = now;
-        game.startBoost(now + CAR.BOOST_DURATION_MS);
+        game.startBoost(now + ownCarStats().boostDurationMs);
       }
     }
   });

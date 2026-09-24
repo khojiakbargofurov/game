@@ -1,17 +1,8 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import { BoxGeometry, Color, InstancedMesh, MeshStandardMaterial, Object3D } from 'three';
-import {
-  ARCHES,
-  COLORS,
-  NARROW,
-  ROUTE_LENGTH,
-  ZONES,
-  createRng,
-  roadHalfWidth,
-  terrainHeight,
-  trackPoint,
-} from '@game/shared';
+import { COLORS, createRng, type Track } from '@game/shared';
+import { useTrack } from '../../store/raceSettings';
 import { mergeParts } from '../mergeParts';
 
 interface Column {
@@ -25,12 +16,16 @@ interface Column {
 }
 
 /** Yo'l bo'yidagi ustunlar qatori (ba'zilari singan, ba'zilari yo'q) — deterministik */
-function generateColumns(): Column[] {
+function generateColumns({ ARCHES, NARROW, ROUTE_LENGTH, def, roadHalfWidth, terrainHeight, trackPoint }: Track): Column[] {
   const rng = createRng(777);
   const out: Column[] = [];
-  for (let s = ZONES.CANYON_END + 15; s < ROUTE_LENGTH - 20; s += 13) {
+  // Xarobalar zonasi boshidan 15 m keyin; trassada xarobalar bo'lmasa — ustun yo'q
+  const z = def.zones.findIndex((zone) => zone.type === 'ruins');
+  if (z < 0) return out;
+  const ruinsStart = z === 0 ? 0 : def.zones[z - 1].end;
+  for (let s = ruinsStart + 15; s < Math.min(ROUTE_LENGTH - 20, def.zones[z].end); s += 13) {
     // Arka va tor yo'lak atrofida qo'ymaymiz
-    if (ARCHES.some((a) => Math.abs(a - s) < 8) || (s > NARROW.start - 8 && s < NARROW.end + 8)) continue;
+    if (ARCHES.some((a) => Math.abs(a - s) < 8) || (NARROW && s > NARROW.start - 8 && s < NARROW.end + 8)) continue;
     for (const side of [1, -1]) {
       if (rng() < 0.3) continue;
       const lateral = side * (roadHalfWidth(s) + 2.6 + rng() * 1.5);
@@ -110,7 +105,7 @@ interface Block {
  * Arkalar va tor yo'lak devorlari — tosh bloklar ro'yxati (dunyo koordinatalarida).
  * Vizual qism bitta birlashtirilgan mesh, colliderlar alohida.
  */
-function generateBlocks(): Block[] {
+function generateBlocks({ ARCHES, NARROW, roadHalfWidth, trackPoint }: Track): Block[] {
   const blocks: Block[] = [];
   const at = (s: number, lateral: number, up: number) => trackPoint(s, lateral, up);
 
@@ -127,7 +122,7 @@ function generateBlocks(): Block[] {
   }
 
   let i = 0;
-  for (let s = NARROW.start - 4; s < NARROW.end + 4; s += 4) {
+  for (let s = NARROW ? NARROW.start - 4 : 0; NARROW && s < NARROW.end + 4; s += 4) {
     for (const side of [1, -1]) {
       const lateral = side * (roadHalfWidth(s + 2) + 0.9);
       const wall = at(s + 2, lateral, 1.6);
@@ -153,23 +148,27 @@ const stoneMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading
 
 /** Qadimiy xarobalar zonasi dekori: ustunlar (instanced), arkalar va tor yo'lak devorlari (birlashtirilgan) */
 export function Ruins() {
-  const columns = useMemo(generateColumns, []);
+  const track = useTrack();
+  const columns = useMemo(() => generateColumns(track), [track]);
   const { blocks, stone } = useMemo(() => {
-    const blocks = generateBlocks();
-    const stone = mergeParts(
-      blocks.map((b) => ({ geometry: new BoxGeometry(...b.size), position: b.position, rotation: [0, b.yaw, 0], color: b.color })),
-    );
+    const blocks = generateBlocks(track);
+    // Arka va tor yo'lak bo'lmagan trassada — bo'sh (mergeGeometries bo'sh ro'yxatni qabul qilmaydi)
+    const stone = blocks.length
+      ? mergeParts(
+          blocks.map((b) => ({ geometry: new BoxGeometry(...b.size), position: b.position, rotation: [0, b.yaw, 0], color: b.color })),
+        )
+      : null;
     return { blocks, stone };
-  }, []);
+  }, [track]);
   return (
     <>
-      <Columns columns={columns} />
+      {columns.length > 0 && <Columns columns={columns} />}
       <RigidBody type="fixed" colliders={false}>
         {columns.map((c, i) => (
           <CylinderCollider key={i} args={[c.height / 2, c.radius]} position={[c.x, c.y + c.height / 2, c.z]} />
         ))}
       </RigidBody>
-      <mesh geometry={stone} material={stoneMaterial} castShadow receiveShadow />
+      {stone && <mesh geometry={stone} material={stoneMaterial} castShadow receiveShadow />}
       <RigidBody type="fixed" colliders={false}>
         {blocks
           .filter((b) => b.solid)

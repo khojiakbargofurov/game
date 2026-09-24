@@ -1,14 +1,6 @@
-import {
-  CHECKPOINTS,
-  COINS,
-  COIN_RADIUS,
-  RACE,
-  ROOM,
-  nearestOnRoute,
-  type RaceResult,
-} from '@game/shared';
+import { COIN_RADIUS, RACE, ROOM, type RaceResult } from '@game/shared';
 import { isNear } from './antiCheat';
-import type { Room, ServerPlayer } from './rooms';
+import { trackOf, type Room, type ServerPlayer } from './rooms';
 
 /**
  * Poyga qoidalari (server — yagona haqiqat manbai):
@@ -25,7 +17,7 @@ export function passCheckpoint(
 ): { accepted: boolean; finished?: boolean; first?: boolean; timeMs?: number } {
   if (room.phase !== 'racing' || !room.startedAt || player.finishTimeMs !== null) return { accepted: false };
   if (index !== player.nextCheckpoint) return { accepted: false }; // tartib buzildi
-  const cp = CHECKPOINTS[index];
+  const cp = trackOf(room).CHECKPOINTS[index];
   if (!cp || !isNear(player.last, cp.position, cp.radius)) return { accepted: false };
 
   player.nextCheckpoint++;
@@ -40,7 +32,7 @@ export function passCheckpoint(
 /** Tanga: har bir o'yinchi uchun alohida, bir marta, faqat yaqinida bo'lsa */
 export function collectCoin(room: Room, player: ServerPlayer, id: number): boolean {
   if (room.phase !== 'racing' || !Number.isInteger(id) || player.coins.has(id)) return false;
-  const coin = COINS[id];
+  const coin = trackOf(room).COINS[id];
   if (!coin || !isNear(player.last, coin.position, COIN_RADIUS)) return false;
   player.coins.add(id);
   return true;
@@ -50,8 +42,9 @@ export function collectCoin(room: Room, player: ServerPlayer, id: number): boole
  * Marshrut bo'ylab progress (m). Eng yaqin nuqta qidiruvi marshrutning boshqa qismiga
  * "sakrab" ketmasligi uchun oxirgi va navbatdagi checkpoint orasiga cheklanadi.
  */
-function progress(p: ServerPlayer): number {
+function progress(room: Room, p: ServerPlayer): number {
   if (p.finishTimeMs !== null) return Infinity;
+  const { CHECKPOINTS, nearestOnRoute } = trackOf(room);
   const prevS = p.nextCheckpoint > 0 ? CHECKPOINTS[p.nextCheckpoint - 1].s : 0;
   const nextS = CHECKPOINTS[p.nextCheckpoint]?.s ?? prevS;
   if (!p.last) return prevS;
@@ -61,7 +54,7 @@ function progress(p: ServerPlayer): number {
 
 /** Joriy o'rinlar: marraga yetganlar vaqt bo'yicha, qolganlar checkpoint + progress bo'yicha */
 export function standings(room: Room): ServerPlayer[] {
-  const rows = [...room.players.values()].map((p) => ({ p, prog: progress(p) }));
+  const rows = [...room.players.values()].map((p) => ({ p, prog: progress(room, p) }));
   rows.sort((a, b) => {
     const fa = a.p.finishTimeMs;
     const fb = b.p.finishTimeMs;

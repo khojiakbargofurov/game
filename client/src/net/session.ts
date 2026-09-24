@@ -1,8 +1,10 @@
-import { CHECKPOINTS, ROOM, START, gridSpawn, type AckResult, type RoomInfo, type SpawnPoint } from '@game/shared';
+import { ROOM, type AckResult, type RaceSettings, type RoomInfo, type SpawnPoint } from '@game/shared';
 import { requestRespawn } from '../input/keyboard';
 import { useGameStore } from '../store/gameStore';
 import { useCarChoice } from '../store/carChoice';
 import { useNetStore } from '../store/netStore';
+import { activeTrack, useMenuChoice } from '../store/raceSettings';
+import { useGarage } from '../store/garage';
 import { resetPickups } from '../store/pickups';
 import { whenWorldReady } from '../store/loadState';
 import { observeServerTime, resetServerClock, serverNow } from './serverClock';
@@ -48,7 +50,7 @@ let cancelSoloStart: (() => void) | null = null;
 
 /** Yakka rejim: start joyiga qo'yish va mahalliy 3-2-1 (dunyo yuklangandan keyin) */
 export function startSolo() {
-  resetRace(START);
+  resetRace(activeTrack().START);
   useNetStore.setState({ screen: 'race', mode: 'solo', error: null, results: null, standings: [] });
   cancelSoloStart?.();
   cancelSoloStart = whenWorldReady(() => {
@@ -71,12 +73,29 @@ function onRoomJoined(res: AckResult<RoomInfo>, name: string) {
 
 export function createRoom(name: string) {
   useNetStore.setState({ busy: true, error: null });
-  socket.emit('room:create', { name, car: useCarChoice.getState().car }, (res) => onRoomJoined(res, name));
+  const { car } = useCarChoice.getState();
+  const upgrades = useGarage.getState().levels;
+  socket.emit('room:create', { name, car, upgrades, settings: menuSettings() }, (res) => onRoomJoined(res, name));
+}
+
+/** Menyuda tanlangan sharoit — yangi xona shu bilan yaratiladi */
+function menuSettings(): Partial<RaceSettings> {
+  const { trackId, season, weather } = useMenuChoice.getState();
+  return { trackId, season, weather, upgradesEnabled: true };
+}
+
+/** Faqat host, lobby'da: xona sozlamalarini o'zgartirish (server hammaga room:update yuboradi) */
+export function updateRoomSettings(patch: Partial<RaceSettings>) {
+  socket.emit('room:settings', patch, (res) => {
+    if (!res.ok) useNetStore.setState({ error: res.error });
+  });
 }
 
 export function joinRoom(code: string, name: string) {
   useNetStore.setState({ busy: true, error: null });
-  socket.emit('room:join', { code, name, car: useCarChoice.getState().car }, (res) => onRoomJoined(res, name));
+  const { car } = useCarChoice.getState();
+  const upgrades = useGarage.getState().levels;
+  socket.emit('room:join', { code, name, car, upgrades }, (res) => onRoomJoined(res, name));
 }
 
 export function startOnlineRace() {
@@ -97,7 +116,7 @@ export function resetRoom(start: boolean) {
 export function backToMenu() {
   if (useNetStore.getState().room) socket.emit('room:leave');
   remoteBuffers.clear();
-  resetRace(START);
+  resetRace(activeTrack().START);
   useNetStore.setState({ screen: 'menu', room: null, error: null, results: null, standings: [], finishDeadline: null });
 }
 
@@ -140,7 +159,7 @@ socket.on('room:update', (room) => {
   for (const id of remoteBuffers.keys()) if (!ids.has(id)) remoteBuffers.delete(id);
   // Host xonani lobbyga qaytardi — natijalardan xona ekraniga
   if (mode === 'online' && screen === 'race' && room.phase === 'lobby') {
-    resetRace(START);
+    resetRace(activeTrack().START);
     useNetStore.setState({ screen: 'room', results: null, standings: [] });
   }
 });
@@ -152,7 +171,7 @@ socket.on('race:countdown', ({ startsAt, serverTime }) => {
   resetServerClock();
   observeServerTime(serverTime);
   remoteBuffers.clear();
-  resetRace(gridSpawn(me.slot));
+  resetRace(activeTrack().gridSpawn(me.slot));
   useGameStore.getState().startCountdown(toLocalTime(startsAt));
   useNetStore.setState({ screen: 'race', results: null, standings: [], error: null, finishDeadline: null });
 });
@@ -168,7 +187,7 @@ socket.on('race:checkpointAck', ({ index, accepted, timeMs }) => {
   if (pendingCheckpoint?.index === index) pendingCheckpoint = null;
   const game = useGameStore.getState();
   if (!accepted || index !== game.nextCheckpoint) return;
-  const cp = CHECKPOINTS[index];
+  const cp = activeTrack().CHECKPOINTS[index];
   game.passCheckpoint(index, { position: [cp.position[0], cp.position[1] + 1.2, cp.position[2]], yaw: cp.yaw });
   if (cp.isFinish && timeMs !== undefined && game.startedAt !== null) game.finish(game.startedAt + timeMs);
 });
@@ -177,9 +196,12 @@ socket.on('race:standings', ({ order }) => useNetStore.setState({ standings: ord
 
 socket.on('race:finishing', ({ endsAt }) => useNetStore.setState({ finishDeadline: toLocalTime(endsAt) }));
 
-socket.on('race:results', ({ results }) =>
-  useNetStore.setState({ results, standings: results.map((r) => r.playerId), finishDeadline: null }),
-);
+socket.on('race:results', ({ results }) => {
+  useNetStore.setState({ results, standings: results.map((r) => r.playerId), finishDeadline: null });
+  // Server tasdiqlagan tangalar hamyonga (marraga yetmagan bo'lsa ham — yig'ilgani o'ziniki)
+  const mine = results.find((r) => r.playerId === useNetStore.getState().selfId);
+  if (mine) useGarage.getState().deposit(mine.coins);
+});
 
 socket.on('room:snapshot', ({ t, players }) => {
   observeServerTime(t);

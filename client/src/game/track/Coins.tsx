@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { InstancedMesh, Object3D } from 'three';
-import { COINS, COLORS } from '@game/shared';
+import { COLORS } from '@game/shared';
+import { useTrack } from '../../store/raceSettings';
 import { pickups } from '../../store/pickups';
 
 const o = new Object3D();
@@ -12,6 +13,7 @@ const o = new Object3D();
  */
 export function Coins() {
   const ref = useRef<InstancedMesh>(null);
+  const { COINS } = useTrack();
 
   useFrame(({ clock }) => {
     const mesh = ref.current;

@@ -1,13 +1,4 @@
-import {
-  BRIDGE,
-  ROUTE_LENGTH,
-  TUNNEL,
-  createRng,
-  roadHalfWidth,
-  sampleTerrain,
-  trackPoint,
-  type TerrainSample,
-} from '@game/shared';
+import { createRng, type TerrainSample, type Track } from '@game/shared';
 
 export type Kind = 'pine' | 'broadleaf' | 'rock' | 'redRock';
 
@@ -34,7 +25,8 @@ const SOLID_DISTANCE = 30;
  * so'ng o'sha nuqtaning zonasiga qarab daraxt yoki qoya qo'yiladi.
  * Yo'l, ko'prik jarligi va tunnel ichiga tushgan nuqtalar tashlab yuboriladi.
  */
-export function generatePlacements(): Placement[] {
+export function generatePlacements(track: Track): Placement[] {
+  const { BRIDGE, TUNNEL, LAKE, ROUTE_LENGTH, roadHalfWidth, sampleTerrain, trackPoint } = track;
   const rng = createRng(2024);
   const out: Placement[] = [];
   const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0 };
@@ -49,8 +41,9 @@ export function generatePlacements(): Placement[] {
 
     const clearance = t.dist - t.halfWidth;
     if (clearance < 4) continue; // yo'l ustida emas
-    if (t.s > BRIDGE.start - 15 && t.s < BRIDGE.end + 15 && clearance < 60) continue; // jarlik
-    if (t.s > TUNNEL.start - 5 && t.s < TUNNEL.end + 5 && clearance < 14) continue; // tunnel
+    if (BRIDGE && t.s > BRIDGE.start - 15 && t.s < BRIDGE.end + 15 && clearance < 60) continue; // jarlik
+    if (TUNNEL && t.s > TUNNEL.start - 5 && t.s < TUNNEL.end + 5 && clearance < 14) continue; // tunnel
+    if (LAKE && t.height < LAKE.y + 0.4) continue; // suv ostida
 
     const r = rng();
     let kind: Kind | null = null;

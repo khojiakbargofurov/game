@@ -1,9 +1,24 @@
-import { ROOM, gridSpawn, type CarId, type NetState, type PlayerInfo, type PlayerState, type RoomInfo, type RoomPhase } from '@game/shared';
+import {
+  NO_UPGRADES,
+  ROOM,
+  getTrack,
+  type CarId,
+  type NetState,
+  type PlayerInfo,
+  type PlayerState,
+  type RaceSettings,
+  type RoomInfo,
+  type RoomPhase,
+  type Track,
+  type UpgradeLevels,
+} from '@game/shared';
 
 export interface ServerPlayer {
   id: string;
   name: string;
   car: CarId;
+  /** Klient e'lon qilgan upgrade darajalari (0..MAX gacha cheklangan) */
+  upgrades: UpgradeLevels;
   slot: number;
   /** Oxirgi qabul qilingan holat va qabul qilingan vaqti (server ms) */
   last: { state: NetState; at: number } | null;
@@ -19,6 +34,8 @@ export interface Room {
   code: string;
   hostId: string;
   phase: RoomPhase;
+  /** Trassa, fasl, ob-havo, upgrade'lar — host lobby'da o'zgartiradi */
+  settings: RaceSettings;
   players: Map<string, ServerPlayer>;
   /** Poyga boshlanish vaqti (countdown tugashi), server ms */
   startedAt: number | null;
@@ -54,34 +71,45 @@ export class RoomManager {
   /** socket.id → xona kodi */
   private membership = new Map<string, string>();
 
-  create(playerId: string, name: string, car: CarId): Room {
+  create(playerId: string, name: string, car: CarId, upgrades: UpgradeLevels, settings: RaceSettings): Room {
     let code = randomCode();
     while (this.rooms.has(code)) code = randomCode();
     const room: Room = {
       code,
       hostId: playerId,
       phase: 'lobby',
+      settings,
       players: new Map(),
       startedAt: null,
       firstFinishAt: null,
       timers: [],
     };
     this.rooms.set(code, room);
-    this.addPlayer(room, playerId, name, car);
+    this.addPlayer(room, playerId, name, car, upgrades);
     return room;
   }
 
-  join(code: string, playerId: string, name: string, car: CarId): Room | JoinError {
+  join(code: string, playerId: string, name: string, car: CarId, upgrades: UpgradeLevels): Room | JoinError {
     const room = this.rooms.get(code);
     if (!room) return 'not_found';
     if (room.phase !== 'lobby') return 'in_progress';
     if (room.players.size >= ROOM.MAX_PLAYERS) return 'full';
-    this.addPlayer(room, playerId, name, car);
+    this.addPlayer(room, playerId, name, car, upgrades);
     return room;
   }
 
-  private addPlayer(room: Room, id: string, name: string, car: CarId) {
-    room.players.set(id, { id, name, car, slot: freeSlot(room), last: null, nextCheckpoint: 0, finishTimeMs: null, coins: new Set() });
+  private addPlayer(room: Room, id: string, name: string, car: CarId, upgrades: UpgradeLevels) {
+    room.players.set(id, {
+      id,
+      name,
+      car,
+      upgrades,
+      slot: freeSlot(room),
+      last: null,
+      nextCheckpoint: 0,
+      finishTimeMs: null,
+      coins: new Set(),
+    });
     this.membership.set(id, room.code);
   }
 
@@ -123,7 +151,7 @@ export class RoomManager {
       p.nextCheckpoint = 0;
       p.finishTimeMs = null;
       p.coins.clear();
-      const spawn = gridSpawn(p.slot);
+      const spawn = trackOf(room).gridSpawn(p.slot);
       const half = spawn.yaw / 2;
       p.last = {
         state: { position: spawn.position, rotation: [0, Math.sin(half), 0, Math.cos(half)], velocity: [0, 0, 0] },
@@ -154,6 +182,13 @@ export function clearTimers(room: Room) {
   room.timers = [];
 }
 
+/** Xonaning joriy trassasi */
+export const trackOf = (room: Room): Track => getTrack(room.settings.trackId);
+
+/** Poygada amal qiladigan darajalar: host upgrade'larni o'chirgan bo'lsa — hammasi 0 */
+export const effectiveUpgrades = (room: Room, p: ServerPlayer): UpgradeLevels =>
+  room.settings.upgradesEnabled ? p.upgrades : NO_UPGRADES;
+
 export function roomInfo(room: Room): RoomInfo {
   const players: PlayerInfo[] = [...room.players.values()]
     .sort((a, b) => a.slot - b.slot)
@@ -161,11 +196,12 @@ export function roomInfo(room: Room): RoomInfo {
       id: p.id,
       name: p.name,
       car: p.car,
+      upgrades: effectiveUpgrades(room, p),
       slot: p.slot,
       color: ROOM.PLAYER_COLORS[p.slot % ROOM.PLAYER_COLORS.length],
       isHost: p.id === room.hostId,
     }));
-  return { code: room.code, phase: room.phase, players };
+  return { code: room.code, phase: room.phase, settings: room.settings, players };
 }
 
 export function snapshotOf(room: Room): PlayerState[] {

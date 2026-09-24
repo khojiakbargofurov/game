@@ -11,9 +11,10 @@ import {
   Object3D,
   type BufferGeometry,
 } from 'three';
-import { COLORS } from '@game/shared';
+import type { Palette } from '@game/shared';
 import { usePreset } from '../../store/quality';
 import { generatePlacements, type Placement } from './placement';
+import { usePalette, useTrack } from '../../store/raceSettings';
 
 /** Bir turdagi obyekt qismi (masalan, qarag'ay tanasi) — bitta InstancedMesh */
 interface Part {
@@ -58,29 +59,45 @@ function InstancedPart({ items, part }: { items: Placement[]; part: Part }) {
 
 /** Barcha manzara uchun bitta material (rang — instanceColor orqali) */
 const material = new MeshStandardMaterial({ flatShading: true, roughness: 1 });
-const rockGeometry = new DodecahedronGeometry(1, 0);
-const LEAVES = [COLORS.leaves, COLORS.leavesLight, '#3f6d33'];
-
 // openEnded — ko'rinmaydigan qopqoqlarsiz (tana uchlari barg ichida/yerda, yuqori konus tagi pastki konus ichida):
-// ~3600 obyektda ~25% kam uchburchak
-const PARTS: Record<Placement['kind'], Part[]> = {
-  pine: [
-    { geometry: new CylinderGeometry(0.18, 0.28, 2, 5, 1, true), offset: [0, 1, 0], colors: [COLORS.trunk] },
-    { geometry: new ConeGeometry(1.5, 2.6, 6), offset: [0, 2.8, 0], colors: LEAVES },
-    { geometry: new ConeGeometry(1.05, 2, 6, 1, true), offset: [0, 4.1, 0], colors: LEAVES },
-  ],
-  broadleaf: [
-    { geometry: new CylinderGeometry(0.2, 0.3, 2.4, 5, 1, true), offset: [0, 1.2, 0], colors: [COLORS.trunk] },
-    { geometry: new IcosahedronGeometry(1.6, 0), offset: [0, 3.2, 0], colors: ['#7a9a3c', '#9aa447', '#c49a45', '#6f8f3a'] },
-  ],
-  rock: [{ geometry: rockGeometry, offset: [0, 0.2, 0], stretch: [1, 0.7, 1.1], colors: [COLORS.rock, '#8c7a6c', '#a8988a'] }],
-  redRock: [{ geometry: rockGeometry, offset: [0, 0.2, 0], stretch: [1.1, 0.8, 1], colors: [COLORS.canyonA, COLORS.canyonB, COLORS.rock] }],
+// ~3600 obyektda ~25% kam uchburchak. Geometriyalar hamma fasllar uchun umumiy, faqat ranglar farq qiladi.
+const GEO = {
+  pineTrunk: new CylinderGeometry(0.18, 0.28, 2, 5, 1, true),
+  pineLow: new ConeGeometry(1.5, 2.6, 6),
+  pineHigh: new ConeGeometry(1.05, 2, 6, 1, true),
+  broadTrunk: new CylinderGeometry(0.2, 0.3, 2.4, 5, 1, true),
+  crown: new IcosahedronGeometry(1.6, 0),
+  rock: new DodecahedronGeometry(1, 0),
 };
+
+const partsCache = new WeakMap<Palette, Record<Kind, Part[]>>();
+
+/** Manzara qismlari fasl ranglarida */
+function partsFor(c: Palette): Record<Kind, Part[]> {
+  let parts = partsCache.get(c);
+  if (!parts) {
+    parts = {
+      pine: [
+        { geometry: GEO.pineTrunk, offset: [0, 1, 0], colors: [c.trunk] },
+        { geometry: GEO.pineLow, offset: [0, 2.8, 0], colors: c.pineLeaves },
+        { geometry: GEO.pineHigh, offset: [0, 4.1, 0], colors: c.pineLeaves },
+      ],
+      broadleaf: [
+        { geometry: GEO.broadTrunk, offset: [0, 1.2, 0], colors: [c.trunk] },
+        { geometry: GEO.crown, offset: [0, 3.2, 0], colors: c.broadleaf },
+      ],
+      rock: [{ geometry: GEO.rock, offset: [0, 0.2, 0], stretch: [1, 0.7, 1.1], colors: [c.rock, '#8c7a6c', '#a8988a'] }],
+      redRock: [{ geometry: GEO.rock, offset: [0, 0.2, 0], stretch: [1.1, 0.8, 1], colors: [c.canyonA, c.canyonB, c.rock] }],
+    };
+    partsCache.set(c, parts);
+  }
+  return parts;
+}
 
 /** Manzara bo'laklari o'lchami (m) — har bir bo'lak alohida frustum culling qilinadi */
 const CHUNK = 150;
 type Kind = Placement['kind'];
-const KINDS = Object.keys(PARTS) as Kind[];
+const KINDS: Kind[] = ['pine', 'broadleaf', 'rock', 'redRock'];
 
 /** Joylashuvlarni bo'laklarga va turlarga ajratish */
 function chunkify(items: Placement[]): Map<string, Record<Kind, Placement[]>> {
@@ -104,7 +121,9 @@ function chunkify(items: Placement[]): Map<string, Record<Kind, Placement[]>> {
  */
 export function Scenery() {
   const density = usePreset().sceneryDensity;
-  const all = useMemo(generatePlacements, []);
+  const track = useTrack();
+  const PARTS = partsFor(usePalette());
+  const all = useMemo(() => generatePlacements(track), [track]);
   const chunks = useMemo(() => chunkify(all.filter((p) => p.solid || p.lod < density)), [all, density]);
   const solids = useMemo(() => all.filter((p) => p.solid), [all]);
 

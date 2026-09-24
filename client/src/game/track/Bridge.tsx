@@ -1,15 +1,13 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { BoxGeometry, Color, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three';
-import { BRIDGE, COLORS, routeAt, yawOf } from '@game/shared';
+import { COLORS, yawOf, type BridgeDef } from '@game/shared';
+import { activeTrack, usePalette, useTrack } from '../../store/raceSettings';
 import { roadPitch, roadQuaternion } from './trackGeometry';
 import { mergeParts, type Part } from '../mergeParts';
 
 const PLANK = 1.2; // taxta uzunligi (yo'l bo'ylab)
 const SEGMENT = 5; // collider segmenti uzunligi
-const HW = BRIDGE.halfWidth;
-const DECK_START = BRIDGE.start - 2;
-const DECK_END = BRIDGE.end + 2;
 const RAIL_HEIGHT = 1.1;
 
 interface Seg {
@@ -18,7 +16,7 @@ interface Seg {
 }
 
 function segmentAt(s: number, up = 0, lateral = 0): Seg {
-  const f = routeAt(s);
+  const f = activeTrack().routeAt(s);
   return {
     position: [f.x + f.tz * lateral, f.y + up, f.z - f.tx * lateral],
     quaternion: roadQuaternion(yawOf(f.tx, f.tz), roadPitch(s)),
@@ -26,8 +24,12 @@ function segmentAt(s: number, up = 0, lateral = 0): Seg {
 }
 
 /** Taxtalar — bitta InstancedMesh (rangi navbatma-navbat) */
-function Planks() {
+/** Ko'prik o'lchamlari: taxta sathi ko'prikdan 2 m uzunroq (ikki uchida yerga tegadi) */
+const deckOf = (b: BridgeDef) => ({ HW: b.halfWidth, DECK_START: b.start - 2, DECK_END: b.end + 2 });
+
+function Planks({ bridge }: { bridge: BridgeDef }) {
   const ref = useRef<InstancedMesh>(null);
+  const { HW, DECK_START, DECK_END } = deckOf(bridge);
   const count = Math.ceil((DECK_END - DECK_START) / PLANK);
 
   useLayoutEffect(() => {
@@ -46,7 +48,7 @@ function Planks() {
       mesh.setColorAt(i, i % 3 === 0 ? dark : light);
     }
     mesh.instanceMatrix.needsUpdate = true;
-  }, [count]);
+  }, [count, DECK_START]);
 
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, count]} castShadow receiveShadow>
@@ -62,7 +64,15 @@ const woodMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading:
  * Jarlik ustidagi yog'och ko'prik: taxtalar, panjara, tayanch ustunlar va daryo.
  * Fizika: har 5 m da qiya cuboid (taxta sathi) + ikki yonida panjara colliderlari.
  */
+/** Trassada ko'prik bo'lmasa — hech narsa chizilmaydi */
 export function Bridge() {
+  const { BRIDGE } = useTrack();
+  return BRIDGE ? <BridgeImpl bridge={BRIDGE} /> : null;
+}
+
+function BridgeImpl({ bridge: BRIDGE }: { bridge: BridgeDef }) {
+  const { HW, DECK_START, DECK_END } = deckOf(BRIDGE);
+  const waterColor = usePalette().water;
   const { segments, structure, water } = useMemo(() => {
     const segments: Seg[] = [];
     for (let s = DECK_START; s < DECK_END; s += SEGMENT) segments.push(segmentAt(s + SEGMENT / 2, -0.25));
@@ -94,17 +104,17 @@ export function Bridge() {
     }
     const structure = mergeParts(parts);
 
-    const mid = routeAt((BRIDGE.start + BRIDGE.end) / 2);
+    const mid = activeTrack().routeAt((BRIDGE.start + BRIDGE.end) / 2);
     const water = {
       position: [mid.x, mid.y - BRIDGE.gorgeDepth + 2.2, mid.z] as [number, number, number],
       yaw: yawOf(mid.tx, mid.tz),
     };
     return { segments, structure, water };
-  }, []);
+  }, [BRIDGE, HW, DECK_START, DECK_END]);
 
   return (
     <group>
-      <Planks />
+      <Planks bridge={BRIDGE} />
 
       <mesh geometry={structure} material={woodMaterial} castShadow receiveShadow />
 
@@ -128,7 +138,7 @@ export function Bridge() {
       <mesh position={water.position} rotation={[-Math.PI / 2, 0, water.yaw]} receiveShadow>
         {/* Lokal X (260) — yo'lga ko'ndalang, lokal Y — yo'l bo'ylab */}
         <planeGeometry args={[260, BRIDGE.end - BRIDGE.start + 10]} />
-        <meshStandardMaterial color={COLORS.water} roughness={0.25} metalness={0.1} transparent opacity={0.9} />
+        <meshStandardMaterial color={waterColor} roughness={0.25} metalness={0.1} transparent opacity={0.9} />
       </mesh>
     </group>
   );

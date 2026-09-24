@@ -1,10 +1,11 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import type { PerspectiveCamera } from 'three';
-import { COLORS, CAMERA, LIGHTING, WORLD } from '@game/shared';
+import { Color, type PerspectiveCamera } from 'three';
+import { CAMERA, LIGHTING, WORLD } from '@game/shared';
 import { useQuality, QUALITY_PRESETS } from '../store/quality';
+import { useActiveSettings, usePalette, useWeatherFx } from '../store/raceSettings';
 import { Lights } from './Lights';
 import { Terrain } from './Terrain';
 import { Scenery } from './scenery/Scenery';
@@ -26,6 +27,7 @@ import { NetSync } from './remote/NetSync';
 import { EngineAudio } from '../audio/EngineAudio';
 import { PerfStats } from './PerfStats';
 import { WorldReady } from './WorldReady';
+import { Weather } from './Weather';
 
 /** URL'da ?debug bo'lsa fizika colliderlari ko'rsatiladi */
 const DEBUG = new URLSearchParams(location.search).has('debug');
@@ -49,25 +51,36 @@ export default function Scene() {
   const [dpr, setDpr] = useState(maxDpr);
   useEffect(() => setDpr(maxDpr), [maxDpr]);
 
+  // Fasl + ob-havo: osmon/tuman rangi ob-havo rangiga aralashtiriladi, yomg'ir/qorda tuman yaqinroq
+  const { trackId, season } = useActiveSettings();
+  const palette = usePalette();
+  const fx = useWeatherFx();
+  const { sky, fog } = useMemo(() => {
+    const mix = (c: string) => (fx.tint ? new Color(c).lerp(new Color(fx.tint), fx.tintAmount) : new Color(c));
+    return { sky: mix(palette.sky), fog: mix(palette.fog) };
+  }, [palette, fx]);
+  const fogFar = preset.fogFar * fx.fogScale;
+
   return (
     <Canvas
       // antialias faqat WebGL kontekst yaratilganda beriladi — o'zgarsa Canvas qayta yaratiladi
       key={preset.antialias ? 'aa' : 'no-aa'}
       shadows={preset.shadows}
       dpr={dpr}
-      camera={{ fov: CAMERA.FOV, near: 0.1, far: preset.fogFar + 40 }}
+      camera={{ fov: CAMERA.FOV, near: 0.1, far: fogFar + 40 }}
       gl={{ antialias: preset.antialias, powerPreference: 'high-performance' }}
     >
       <PerformanceMonitor
         onChange={({ factor }) => setDpr(Math.round((minDpr + (maxDpr - minDpr) * factor) * 100) / 100)}
       />
-      <CameraFar far={preset.fogFar + 40} />
-      <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.fog, LIGHTING.FOG_NEAR, preset.fogFar]} />
+      <CameraFar far={fogFar + 40} />
+      <color attach="background" args={[sky]} />
+      <fog attach="fog" args={[fog, LIGHTING.FOG_NEAR * fx.fogScale, fogFar]} />
       <Lights />
       {/* Rapier WASM asinxron yuklanadi */}
       <Suspense fallback={null}>
-        <Physics gravity={[0, WORLD.GRAVITY, 0]} timeStep={1 / 60} debug={DEBUG}>
+        {/* key — trassa yoki fasl o'zgarsa butun dunyo (relyef, colliderlar) qaytadan quriladi */}
+        <Physics key={`${trackId}-${season}`} gravity={[0, WORLD.GRAVITY, 0]} timeStep={1 / 60} debug={DEBUG}>
           <Terrain />
           <Scenery />
           <Bridge />
@@ -85,6 +98,7 @@ export default function Scene() {
       <Checkpoints />
       <Coins />
       <Boosts />
+      <Weather />
       <RaceLogic />
       <NetSync />
       <EngineAudio />

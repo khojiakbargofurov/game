@@ -1,6 +1,6 @@
 # Adventure Racer
 
-Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: o'rmon → kanyon → qadimiy xarobalar → marra.
+Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 3 trassa, 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari.
 
 **Texnologiyalar:** Vite + React + TypeScript · three.js / @react-three/fiber / drei · @react-three/rapier · zustand · Node.js + Socket.io
 
@@ -42,6 +42,9 @@ npm start           # serverni production rejimida ishga tushirish
 npm run sim -w client        # mashina fizikasini headless sinash (tezlanish, tormoz, burilish, drift)
 npm run sim:route -w client  # avtopilot butun marshrutni bosib o'tadi (yo'l haydashga yaroqliligi)
 npm run sim:stress -w client # agressiv haydovchi (boost tezligida): korpus-relyef tegishi, ag'darilish
+# Simulyatsiyalar argumentlari: [trackId] [weather] [max] — masalan:
+npm run sim:route -w client -- mountain snow      # Tog' dovoni, qor (sirpanchiq yo'l)
+npm run sim:stress -w client -- lake rain max     # barcha upgrade'lar 5-darajada
 npm run smoke -w server       # server smoke-testi (server ishlab turgan bo'lishi kerak)
 npm run test:interp -w client # snapshot interpolyatsiya testlari
 ```
@@ -83,11 +86,36 @@ npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara,
 
 Menyuda 4 ta mashinadan biri tanlanadi: Qizil, Yashil, To'q sariq, Oq (Kenney Racing Kit, `client/public/model/`).
 Tanlov brauzerda saqlanadi; onlayn xonada boshqa o'yinchilar ham sizning mashinangizni ko'radi.
-Ro'yxat — `shared/src/config.ts` dagi `CARS`. Fizika hamma mashinada bir xil (adolatli poyga).
+Ro'yxat — `shared/src/config.ts` dagi `CARS`. Mashinalar faqat ko'rinishi bilan farq qiladi.
+
+## Garaj (upgrade'lar)
+
+Poygada yig'ilgan tangalar marradan keyin **garaj hamyoniga** qo'shiladi (onlayn — server tasdiqlagan tangalar).
+Menyudagi **🔧 Garaj**da 4 ta upgrade sotib olinadi, har biri 0–5 daraja (narx: 20, 40, 70, 110, 160):
+
+| Upgrade | 5-darajada |
+| --- | --- |
+| Dvigatel | maksimal tezlik +30%, tezlanish +40% |
+| Shinalar | yo'lni tutish +40% (sirpanchiq yo'lda ayniqsa foydali) |
+| Boost | davomiyligi +75% |
+| Rul | tezlikda burilish +60% |
+
+Formula — `shared/src/upgrades.ts` dagi `carStats()`: client (haydash) va server (anti-cheat tezlik chegarasi) bir xil hisoblaydi.
+Hamyon brauzerda (localStorage) saqlanadi; server darajalarni 0–5 ga cheklaydi.
+Onlayn xonada egasi lobby'da **"Hamma teng"** ni tanlasa, upgrade'lar o'chadi (hamma 0-darajada).
+
+## Fasl va ob-havo
+
+Menyuda (onlayn — xona egasi lobby'da) tanlanadi, `shared/src/environment.ts`:
+
+- **Fasl** — ranglar palitrasi: ☀️ Yoz, 🍂 Kuz (to'q sariq barglar), ⛄ Qish (qor, qorli qoyalar, bargsiz daraxtlar), 🌸 Bahor (gullagan daraxtlar).
+- **Ob-havo** — 🌤️ Ochiq, 🌧️ Yomg'ir, 🌨️ Qor: zarrachalar (`client/src/game/Weather.tsx`, soni grafika sifatiga bog'liq),
+  qalinroq tuman, xiraroq quyosh va **sirpanchiq yo'l** — tutish yomg'irda ×0.72, qorda ×0.5 (burilish va tormoz kuchsizroq).
 
 ## Multiplayer
 
-1. Menyuda ism kiriting → **Xona yaratish** → 6 belgili kod chiqadi.
+1. Menyuda ism kiriting → **Xona yaratish** → 6 belgili kod chiqadi (xona menyudagi trassa/fasl/ob-havo bilan yaratiladi;
+   xona egasi lobby'da ularni va upgrade'lar yoqilganini o'zgartira oladi).
 2. Boshqa o'yinchilar kodni kiritib **Qo'shilish** bosadi (2–8 o'yinchi).
 3. Xona egasi (👑) **Start** bosadi → **3-2-1** countdown (boshqaruv qulf) → poyga.
 4. Hamma marraga yetganda (yoki birinchi o'yinchidan 45 s keyin — qolganlarga ekranda teskari sanoq ko'rsatiladi) — **natijalar jadvali**;
@@ -120,16 +148,21 @@ Debug:
 - Dev rejimda brauzer konsolida: `__goto(700)` — mashinani marshrutning 700-metriga ko'chirish, `__state()` — mashina holati,
   `__perf()` — draw call/uchburchaklar, `__quality('low')` — sifatni almashtirish, `__setRespawn(100)` — respawn nuqtasini teleportsiz o'zgartirish.
 
-## Trassa
+## Trassalar
 
-Marshrut (~1300 m) `shared/src/route.ts` dagi nazorat nuqtalaridan quriladi; barcha obyektlar
-(checkpointlar, tangalar, rampalar, ko'prik, tunnel, to'siqlar) `shared/src/track.ts` da marshrut bo'ylab
-masofa (`s`, metr) orqali beriladi. Relyef (`shared/src/terrain.ts`) marshrutga moslashadi:
+Har bir trassa — faqat ma'lumot (`shared/src/tracks/*.ts`, `TrackDef`): nazorat nuqtalari, zonalar
+(o'rmon / kanyon / xarobalar) va marshrut bo'ylab masofa (`s`, metr) orqali berilgan obyektlar.
+`createTrack()` (`shared/src/tracks/createTrack.ts`) ulardan marshrut, relyef, checkpoint, tanga va boostlarni quradi;
+`getTrack(id)` natijani keshlaydi. Client ham, server ham (har xonada o'z trassasi) shu obyektni ishlatadi.
 
-1. **O'rmon** (0–480 m): tepaliklar, yiqilgan daraxtlar, rampa.
-2. **Ko'prik** jarlik va daryo ustidan (450–505 m).
-3. **Kanyon** (480–880 m): tik qoya devorlar, dumalab tushuvchi toshlar, boost + rampa, g'or-tunnel.
-4. **Qadimiy xarobalar** (880–1300 m): ustunlar, arkalar, yiqilgan ustunlar, tor yo'lak, marra.
+| Trassa | Uzunlik | Yo'l |
+| --- | --- | --- |
+| **Sarguzasht** (`adventure`) | ~1300 m | o'rmon → ko'prik → kanyon (tunnel, toshlar) → xarobalar (arkalar, tor yo'lak) |
+| **Tog' dovoni** (`mountain`) | ~1400 m | o'rmonli serpantin bilan ko'tarilish → qoyali dara, tunnel, dumalaydigan toshlar |
+| **Ko'l bo'yi** (`lake`) | ~1420 m | daryo ustidan ko'prik → ko'lni aylanib o'tuvchi o'rmon yo'li → xarobalar |
+
+Yangi trassa qo'shish: `shared/src/tracks/` ga `TrackDef` yozib, `TRACK_DEFS` va `TrackId` ga qo'shish;
+so'ng `npm run sim:route -w client -- <id>` bilan oxirigacha haydalishini tekshirish.
 
 ## Boshqaruv
 

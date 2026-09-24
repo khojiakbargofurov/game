@@ -1,4 +1,7 @@
 import type { CarId } from './config';
+import type { Season, Weather } from './environment';
+import type { TrackId } from './tracks';
+import type { UpgradeLevels } from './upgrades';
 
 export type Vec3 = [number, number, number];
 /** Kvaternion [x, y, z, w] */
@@ -26,6 +29,8 @@ export interface PlayerInfo {
   color: string;
   /** Tanlangan mashina */
   car: CarId;
+  /** Poygada amal qiladigan upgrade darajalari (xonada upgrade o'chirilgan bo'lsa — hammasi 0) */
+  upgrades: UpgradeLevels;
   isHost: boolean;
   /** Start panjarasidagi joy (0..MAX_PLAYERS-1) */
   slot: number;
@@ -33,9 +38,19 @@ export interface PlayerInfo {
 
 export type RoomPhase = 'lobby' | 'countdown' | 'racing' | 'finished';
 
+/** Poyga sharoiti: yakkada — menyudan, onlayn — xona egasi tanlaydi */
+export interface RaceSettings {
+  trackId: TrackId;
+  season: Season;
+  weather: Weather;
+  /** Onlayn: upgrade'lar poygaga ta'sir qiladimi (yakka rejimda doim ha) */
+  upgradesEnabled: boolean;
+}
+
 export interface RoomInfo {
   code: string;
   phase: RoomPhase;
+  settings: RaceSettings;
   players: PlayerInfo[];
 }
 

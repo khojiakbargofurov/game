@@ -1,5 +1,5 @@
-import { CHECKPOINTS } from '@game/shared';
 import { useGameStore } from '../store/gameStore';
+import { activeTrack } from '../store/raceSettings';
 import { sfx } from './sfx';
 
 /**
@@ -9,7 +9,7 @@ import { sfx } from './sfx';
 useGameStore.subscribe((s, prev) => {
   if (s.coins > prev.coins) sfx.coin();
   if (s.boostUntil > prev.boostUntil) sfx.boost();
-  if (s.nextCheckpoint > prev.nextCheckpoint && s.nextCheckpoint < CHECKPOINTS.length) sfx.checkpoint();
+  if (s.nextCheckpoint > prev.nextCheckpoint && s.nextCheckpoint < activeTrack().CHECKPOINTS.length) sfx.checkpoint();
   if (s.phase === 'finished' && prev.phase !== 'finished') sfx.finish();
 
   // Countdown boshlandi — 3, 2, 1, GO signallarini aniq vaqtga rejalashtiramiz

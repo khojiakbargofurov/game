@@ -1,12 +1,14 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
-import { BOOSTS, BOOST_RESPAWN_MS, COLORS } from '@game/shared';
+import { BOOST_RESPAWN_MS, COLORS } from '@game/shared';
+import { useTrack } from '../../store/raceSettings';
 import { pickups } from '../../store/pickups';
 
 /** Boost-kristallar: aylanadi, olingach BOOST_RESPAWN_MS davomida yashirinadi */
 export function Boosts() {
   const refs = useRef<(Group | null)[]>([]);
+  const { BOOSTS } = useTrack();
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;

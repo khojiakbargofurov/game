@@ -1,5 +1,7 @@
 import { Quaternion, Vector3 } from 'three';
-import { START, type NetState } from '@game/shared';
+import { DEFAULT_TRACK, getTrack, type NetState } from '@game/shared';
+
+const START = getTrack(DEFAULT_TRACK).START;
 
 /**
  * O'yinchi mashinasining joriy holati — kamera, yorug'lik, trassa logikasi va tarmoq

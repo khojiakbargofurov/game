@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { PerspectiveCamera, Vector3 } from 'three';
-import { CAMERA, CAR, terrainHeight } from '@game/shared';
+import { CAMERA, CAR } from '@game/shared';
+import { activeTrack } from '../store/raceSettings';
 import { carTarget } from './carTarget';
 
 const [, OFFSET_UP, OFFSET_BACK] = CAMERA.OFFSET;
@@ -39,7 +40,7 @@ export function ChaseCamera() {
     desired.copy(carTarget.position).addScaledVector(heading, OFFSET_BACK);
     desired.y += OFFSET_UP;
     // Kamera yer ostiga kirib ketmasin
-    desired.y = Math.max(desired.y, terrainHeight(desired.x, desired.z) + 1.2);
+    desired.y = Math.max(desired.y, activeTrack().terrainHeight(desired.x, desired.z) + 1.2);
 
     look.copy(carTarget.position).addScaledVector(heading, LOOK_AHEAD);
     look.y += LOOK_UP;

@@ -3,5 +3,6 @@ export * from './types';
 export * from './events';
 export * from './noise';
 export * from './route';
-export * from './track';
-export * from './terrain';
+export * from './tracks';
+export * from './environment';
+export * from './upgrades';

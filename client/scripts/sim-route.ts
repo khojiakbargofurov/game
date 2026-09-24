@@ -2,17 +2,19 @@
  * Avtopilot butun marshrutni relyef ustida bosib o'tadi — yo'l haydashga yaroqliligini tekshirish:
  * qotib qolish, ag'darilish, yo'ldan chiqib ketish joylarini ko'rsatadi.
  * Ko'prik (alohida collider) bu testda yo'q, shuning uchun jarlik ustidan teleport qilinadi.
- * Ishga tushirish: npm run sim:route -w client
+ * Ishga tushirish: npm run sim:route -w client [-- trackId [weather]]
  */
-import { BRIDGE, CHECKPOINTS, ROUTE_LENGTH, START, nearestOnRoute, routeAt, yawOf, zoneAt } from '@game/shared';
+import { yawOf } from '@game/shared';
 import { computeDrive } from '../src/game/car/driveLogic';
 import { applyDriveCommand } from '../src/game/car/vehicleSetup';
-import { DT, body, forwardSpeed, teleport, upright, vehicle, world, yawOfBody } from './simWorld';
+import { DT, body, forwardSpeed, stats, teleport, track, upright, vehicle, world, yawOfBody } from './simWorld';
+
+const { BRIDGE, CHECKPOINTS, ROUTE_LENGTH, START, nearestOnRoute, routeAt, zoneAt } = track;
 
 const TARGET_SPEED = 20; // m/s ≈ 72 km/h
 const LOOKAHEAD = 12;
 
-teleport(...START.position, START.yaw);
+teleport(START.position[0], START.position[1], START.position[2], START.yaw);
 let steer = 0;
 let t = 0;
 let nextReport = 0;
@@ -28,7 +30,7 @@ while (t < 240) {
   if (n.s > ROUTE_LENGTH - 12) break;
 
   // Ko'prik uchastkasi — jarlikdan keyin teleport
-  if (n.s > BRIDGE.start - 4 && n.s < BRIDGE.end) {
+  if (BRIDGE && n.s > BRIDGE.start - 4 && n.s < BRIDGE.end) {
     const f = routeAt(BRIDGE.end + 6);
     teleport(f.x, f.y + 1.2, f.z, yawOf(f.tx, f.tz));
     continue;
@@ -47,9 +49,9 @@ while (t < 240) {
     right: diff < -0.05,
     handbrake: false,
   };
-  const cmd = computeDrive(steer, input, speed, DT);
+  const cmd = computeDrive(steer, input, speed, DT, 1, stats);
   steer = cmd.steer;
-  applyDriveCommand(vehicle, cmd);
+  applyDriveCommand(vehicle, cmd, stats);
   vehicle.updateVehicle(DT);
   world.step();
   t += DT;

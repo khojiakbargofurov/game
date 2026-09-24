@@ -1,10 +1,10 @@
-import { nearestOnRoute, trackPoint } from '@game/shared';
 import { carTarget } from './game/carTarget';
 import { perfSnapshot } from './game/PerfStats';
 import { useLoadState } from './store/loadState';
 import { useQuality, type Quality } from './store/quality';
 import { input, requestRespawn } from './input/keyboard';
 import { useGameStore } from './store/gameStore';
+import { activeTrack } from './store/raceSettings';
 
 /**
  * Faqat dev rejimda: brauzer konsolidan trassani tez ko'rish uchun.
@@ -23,13 +23,13 @@ declare global {
 }
 
 window.__goto = (s: number) => {
-  useGameStore.setState({ respawnPoint: trackPoint(s, 0, 1.2) });
+  useGameStore.setState({ respawnPoint: activeTrack().trackPoint(s, 0, 1.2) });
   requestRespawn();
 };
 
 window.__state = () => {
   const p = carTarget.position;
-  const n = nearestOnRoute(p.x, p.z);
+  const n = activeTrack().nearestOnRoute(p.x, p.z);
   const keys = Object.entries(input)
     .filter(([, v]) => v)
     .map(([k]) => k)
@@ -39,5 +39,5 @@ window.__state = () => {
 
 window.__perf = () => ({ ...perfSnapshot, worldReadyAt: useLoadState.getState().readyAt });
 
-window.__setRespawn = (s: number) => useGameStore.setState({ respawnPoint: trackPoint(s, 0, 1.2) });
+window.__setRespawn = (s: number) => useGameStore.setState({ respawnPoint: activeTrack().trackPoint(s, 0, 1.2) });
 window.__quality = (q: Quality) => useQuality.getState().setQuality(q);

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BallCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
-import { BOULDER_SPAWNERS, COLORS, roadHalfWidth, routeAt, terrainHeight } from '@game/shared';
+import { usePalette, useTrack } from '../../store/raceSettings';
 import { carTarget } from '../carTarget';
 
 const POOL_PER_SPAWNER = 2;
@@ -24,6 +24,8 @@ interface Slot {
  * Eslatma: toshlar har bir klientda mahalliy — tarmoq orqali sinxronlanmaydi.
  */
 export function Boulders() {
+  const { BOULDER_SPAWNERS, roadHalfWidth, routeAt, terrainHeight } = useTrack();
+  const rockColor = usePalette().canyonB;
   const bodies = useRef<(RapierRigidBody | null)[]>([]);
   const slots = useRef<Slot[]>(
     BOULDER_SPAWNERS.flatMap((_, spawner) =>
@@ -84,7 +86,7 @@ export function Boulders() {
           <BallCollider args={[RADIUS]} mass={MASS} friction={0.9} restitution={0.2} />
           <mesh scale={[RADIUS, RADIUS * 0.9, RADIUS]} castShadow>
             <dodecahedronGeometry args={[1, 0]} />
-            <meshStandardMaterial color={COLORS.canyonB} flatShading roughness={1} />
+            <meshStandardMaterial color={rockColor} flatShading roughness={1} />
           </mesh>
         </RigidBody>
       ))}

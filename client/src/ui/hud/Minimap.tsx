@@ -1,20 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Quaternion, Vector3 } from 'three';
-import {
-  BRIDGE,
-  CHECKPOINTS,
-  COLORS,
-  NET,
-  ROUTE,
-  ROUTE_STEP,
-  TUNNEL,
-  zoneAt,
-} from '@game/shared';
+import { COLORS, NET, ROUTE_STEP, type Track } from '@game/shared';
 import { carTarget } from '../../game/carTarget';
 import { serverNow } from '../../net/serverClock';
 import { remoteBuffers } from '../../net/snapshotBuffer';
 import { useGameStore } from '../../store/gameStore';
 import { useNetStore } from '../../store/netStore';
+import { activeTrack, useTrack } from '../../store/raceSettings';
 import { useAnimationFrame } from './useAnimationFrame';
 
 const W = 260;
@@ -26,7 +18,7 @@ const FRAME_MS = 1000 / 30;
  * Xarita proyeksiyasi: marshrut shimol-janub bo'ylab cho'zilgan, shuning uchun 90° buriladi
  * (dunyo z → ekran x, dunyo -x → ekran y). Bu aylantirish — ko'zgu emas, chap/o'ng saqlanadi.
  */
-const bounds = (() => {
+function boundsOf({ ROUTE }: Track) {
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   for (let i = 0; i < ROUTE.count; i++) {
     minX = Math.min(minX, ROUTE.xs[i]);
@@ -39,7 +31,9 @@ const bounds = (() => {
   const offX = (W - (maxZ - minZ) * scale) / 2;
   const offY = (H - (maxX - minX) * scale) / 2;
   return { minZ, maxX, scale, offX, offY };
-})();
+}
+
+let bounds = boundsOf(activeTrack());
 
 const toMap = (x: number, z: number): [number, number] => [
   bounds.offX + (z - bounds.minZ) * bounds.scale,
@@ -49,7 +43,15 @@ const toMap = (x: number, z: number): [number, number] => [
 const ZONE_COLOR = { forest: '#7fae4f', canyon: COLORS.canyonA, ruins: '#d9c08a' } as const;
 
 /** Statik fon: marshrut (zona ranglarida), ko'prik, tunnel, checkpointlar, marra */
-function drawBackground(ctx: CanvasRenderingContext2D) {
+function drawBackground(ctx: CanvasRenderingContext2D, { ROUTE, BRIDGE, TUNNEL, LAKE, CHECKPOINTS, zoneAt }: Track) {
+  // Ko'l
+  if (LAKE) {
+    const [x, y] = toMap(LAKE.x, LAKE.z);
+    ctx.fillStyle = 'rgba(79, 159, 179, 0.55)';
+    ctx.beginPath();
+    ctx.arc(x, y, (LAKE.radius - 15) * bounds.scale, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const path = (from: number, to: number) => {
@@ -77,10 +79,14 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
     }
   }
   // Ko'prik (daryo ustida) va tunnel
-  ctx.strokeStyle = COLORS.water;
-  path(Math.round(BRIDGE.start / ROUTE_STEP), Math.round(BRIDGE.end / ROUTE_STEP));
-  ctx.strokeStyle = '#3a2a22';
-  path(Math.round(TUNNEL.start / ROUTE_STEP), Math.round(TUNNEL.end / ROUTE_STEP));
+  if (BRIDGE) {
+    ctx.strokeStyle = COLORS.water;
+    path(Math.round(BRIDGE.start / ROUTE_STEP), Math.round(BRIDGE.end / ROUTE_STEP));
+  }
+  if (TUNNEL) {
+    ctx.strokeStyle = '#3a2a22';
+    path(Math.round(TUNNEL.start / ROUTE_STEP), Math.round(TUNNEL.end / ROUTE_STEP));
+  }
 
   // Checkpointlar
   for (const cp of CHECKPOINTS) {
@@ -106,8 +112,10 @@ export function Minimap() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const background = useRef<HTMLCanvasElement | null>(null);
   const lastDraw = useRef(0);
+  const track = useTrack();
 
   useEffect(() => {
+    bounds = boundsOf(track);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const c = canvas.current!;
     c.width = W * dpr;
@@ -117,9 +125,9 @@ export function Minimap() {
     bg.height = H * dpr;
     const bctx = bg.getContext('2d')!;
     bctx.scale(dpr, dpr);
-    drawBackground(bctx);
+    drawBackground(bctx, track);
     background.current = bg;
-  }, []);
+  }, [track]);
 
   useAnimationFrame((now) => {
     const c = canvas.current;
@@ -134,7 +142,7 @@ export function Minimap() {
     ctx.scale(dpr, dpr);
 
     // Navbatdagi checkpoint — pulsatsiyalanuvchi halqa
-    const cp = CHECKPOINTS[useGameStore.getState().nextCheckpoint];
+    const cp = activeTrack().CHECKPOINTS[useGameStore.getState().nextCheckpoint];
     if (cp) {
       const [x, y] = toMap(cp.position[0], cp.position[2]);
       ctx.strokeStyle = COLORS.checkpoint;

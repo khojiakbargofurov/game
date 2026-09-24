@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide } from 'three';
-import { COLORS, TUNNEL, createRng, roadHalfWidth, routeAt, yawOf } from '@game/shared';
+import { COLORS, createRng, yawOf, type Track, type TunnelDef } from '@game/shared';
+import { usePalette, useTrack } from '../../store/raceSettings';
 
 const STEP = 3; // kesimlar orasidagi masofa (m)
 const ARC_SEGMENTS = 7; // yarim aylana bo'laklari (low-poly)
@@ -12,7 +13,7 @@ const WALL_SEGMENT = 6;
  * Yo'l bo'ylab cho'zilgan arka (yarim ellips kesim) — ichki va tashqi sirt + kirish/chiqish halqalari.
  * Tashqi sirt tasodifiy "bo'rtiq"li — qoya/g'or ko'rinishi uchun.
  */
-function buildShell() {
+function buildShell({ roadHalfWidth, routeAt }: Track, TUNNEL: TunnelDef, rockColor: string) {
   const rng = createRng(4242);
   const rings: { inner: number[][]; outer: number[][] }[] = [];
   for (let s = TUNNEL.start; s <= TUNNEL.end + 0.01; s += STEP) {
@@ -36,7 +37,7 @@ function buildShell() {
   const pos: number[] = [];
   const col: number[] = [];
   const dark = new Color('#4a3b33');
-  const rock = new Color(COLORS.canyonB);
+  const rock = new Color(rockColor);
   const tri = (a: number[], b: number[], c: number[], color: Color) => {
     pos.push(...a, ...b, ...c);
     for (let i = 0; i < 3; i++) col.push(color.r, color.g, color.b);
@@ -83,7 +84,15 @@ function buildShell() {
  * Kanyondagi g'or-tunnel. Fizika: yo'l chetlarida devor colliderlari (tom collideri shart emas).
  * Ichkarida yorug' kristallar — sarguzasht muhiti uchun.
  */
+/** Trassada tunnel bo'lmasa — hech narsa chizilmaydi */
 export function Tunnel() {
+  const track = useTrack();
+  return track.TUNNEL ? <TunnelImpl track={track} tunnel={track.TUNNEL} /> : null;
+}
+
+function TunnelImpl({ track, tunnel: TUNNEL }: { track: Track; tunnel: TunnelDef }) {
+  const { roadHalfWidth, routeAt } = track;
+  const rockColor = usePalette().canyonB;
   const { shell, walls, crystals } = useMemo(() => {
     const walls: { position: [number, number, number]; yaw: number }[] = [];
     for (let s = TUNNEL.start; s < TUNNEL.end; s += WALL_SEGMENT) {
@@ -106,8 +115,8 @@ export function Tunnel() {
         color: side > 0 ? COLORS.crystal : '#c47bff',
       });
     }
-    return { shell: buildShell(), walls, crystals };
-  }, []);
+    return { shell: buildShell(track, TUNNEL, rockColor), walls, crystals };
+  }, [track, TUNNEL, roadHalfWidth, routeAt, rockColor]);
 
   return (
     <group>

@@ -1,0 +1,58 @@
+import type { TrackDef } from './types';
+
+/** Tog' dovoni: o'rmonli serpantin bilan balandga ko'tarilish → qoyali kanyon, tunnel, dumalaydigan toshlar (~1400 m) */
+export const MOUNTAIN: TrackDef = {
+  id: 'mountain',
+  name: "Tog' dovoni",
+  description: 'Serpantin → qoyali dara → tunnel',
+  seed: 311,
+  control: [
+    [-300, 2, -420],
+    [-300, 2, -380],
+    [-260, 4, -320],
+    [-180, 7, -300],
+    [-110, 9, -330],
+    [-40, 10, -300],
+    [-20, 12, -230],
+    [-80, 14, -180],
+    [-170, 15, -150],
+    [-230, 16, -90],
+    [-220, 17, -20],
+    [-150, 18, 20],
+    [-70, 18, 10],
+    [0, 19, 40],
+    [40, 20, 110],
+    [20, 20, 180],
+    [-40, 21, 240],
+    [-30, 22, 310],
+    [40, 22, 360],
+  ],
+  zones: [
+    { type: 'forest', end: 620 },
+    { type: 'canyon', end: Infinity },
+  ],
+  checkpoints: [140, 280, 420, 560, 700, 840, 980, 1120, 1260],
+  boosts: [180, 400, 560, 820, 1100, 1300],
+  ramps: [
+    { s: 130, lateral: 0, width: 6, length: 8, height: 1.6 },
+    { s: 700, lateral: 0, width: 6, length: 9, height: 2.0 },
+    { s: 1200, lateral: 0, width: 6, length: 8, height: 1.8 },
+  ],
+  logs: [
+    { s: 210, side: 1, length: 9 },
+    { s: 320, side: -1, length: 9 },
+    { s: 480, side: 1, length: 8 },
+  ],
+  fallenPillars: [],
+  arches: [],
+  boulderSpawners: [
+    { s: 760, side: 1 },
+    { s: 900, side: -1 },
+    { s: 1150, side: 1 },
+    { s: 1290, side: -1 },
+  ],
+  bridge: null,
+  tunnel: { start: 1000, end: 1065, height: 6.5 },
+  narrow: null,
+  lake: null,
+};

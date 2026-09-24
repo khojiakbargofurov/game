@@ -1,38 +1,23 @@
 /**
- * Sarguzasht marshruti: nazorat nuqtalari → Catmull-Rom spline → yoy uzunligi bo'yicha
- * teng qadamli namunalar. Relyef, yo'l, checkpointlar va barcha trassa obyektlari
- * shu marshrutga nisbatan (masofa `s`, metrda) joylashtiriladi.
+ * Marshrut: nazorat nuqtalari → Catmull-Rom spline → yoy uzunligi bo'yicha teng qadamli namunalar.
+ * Relyef, yo'l, checkpointlar va barcha trassa obyektlari marshrutga nisbatan (masofa `s`, metrda)
+ * joylashtiriladi. Har bir trassa o'z marshrutini quradi (tracks/createTrack.ts).
  * Faqat sof matematika — server ham ishlatadi (three.js kerak emas).
  */
 
-/** [x, yo'l balandligi, z] — o'rmon → kanyon → xarobalar → marra */
-const CONTROL: [number, number, number][] = [
-  // O'rmon
-  [0, 2, -440],
-  [0, 2, -400],
-  [8, 3, -350],
-  [40, 8, -300],
-  [95, 12, -265],
-  [140, 7, -215],
-  [150, 3, -160],
-  [120, 3, -110],
-  [70, 5, -75],
-  // Kanyon
-  [10, 3, -40],
-  [-50, 1, 0],
-  [-110, -1, 45],
-  [-160, -2, 105],
-  [-175, 0, 170],
-  [-150, 3, 230],
-  [-100, 6, 265],
-  // Xarobalar
-  [-40, 9, 285],
-  [25, 11, 300],
-  [85, 11, 330],
-  [130, 11, 375],
-  [150, 11, 425],
-  [155, 11, 460],
-];
+/** Nazorat nuqtasi: [x, yo'l balandligi, z] */
+export type ControlPoint = [number, number, number];
+
+export interface Route {
+  count: number;
+  xs: Float32Array;
+  ys: Float32Array;
+  zs: Float32Array;
+  txs: Float32Array;
+  tzs: Float32Array;
+  /** Marshrut uzunligi (m) */
+  length: number;
+}
 
 /** Namunalar orasidagi masofa (m) */
 export const ROUTE_STEP = 2;
@@ -43,21 +28,21 @@ function catmullRom(p0: number, p1: number, p2: number, p3: number, t: number) {
   return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
 }
 
-function buildSamples() {
+export function buildRoute(control: readonly ControlPoint[]): Route {
   // 1) Spline'ni zich namunalash
   const dense: [number, number, number][] = [];
-  const n = CONTROL.length;
+  const n = control.length;
   for (let i = 0; i < n - 1; i++) {
-    const p0 = CONTROL[Math.max(0, i - 1)];
-    const p1 = CONTROL[i];
-    const p2 = CONTROL[i + 1];
-    const p3 = CONTROL[Math.min(n - 1, i + 2)];
+    const p0 = control[Math.max(0, i - 1)];
+    const p1 = control[i];
+    const p2 = control[i + 1];
+    const p3 = control[Math.min(n - 1, i + 2)];
     for (let k = 0; k < 40; k++) {
       const t = k / 40;
       dense.push([0, 1, 2].map((a) => catmullRom(p0[a], p1[a], p2[a], p3[a], t)) as [number, number, number]);
     }
   }
-  dense.push(CONTROL[n - 1]);
+  dense.push(control[n - 1]);
 
   // 2) Yoy uzunligi bo'yicha teng qadamli qayta namunalash
   const xs: number[] = [dense[0][0]];
@@ -99,11 +84,9 @@ function buildSamples() {
     zs: Float32Array.from(zs),
     txs,
     tzs,
+    length: (count - 1) * ROUTE_STEP,
   };
 }
-
-export const ROUTE = buildSamples();
-export const ROUTE_LENGTH = (ROUTE.count - 1) * ROUTE_STEP;
 
 export interface RouteFrame {
   /** Marshrut bo'ylab masofa (m) */
@@ -117,12 +100,16 @@ export interface RouteFrame {
 }
 
 /** Marshrutdagi `s` masofadagi nuqta (chiziqli interpolyatsiya) */
-export function routeAt(s: number, out: RouteFrame = { s: 0, x: 0, y: 0, z: 0, tx: 0, tz: 1 }): RouteFrame {
-  const f = Math.min(Math.max(s, 0), ROUTE_LENGTH) / ROUTE_STEP;
+export function routeFrameAt(
+  ROUTE: Route,
+  s: number,
+  out: RouteFrame = { s: 0, x: 0, y: 0, z: 0, tx: 0, tz: 1 },
+): RouteFrame {
+  const f = Math.min(Math.max(s, 0), ROUTE.length) / ROUTE_STEP;
   const i = Math.min(Math.floor(f), ROUTE.count - 2);
   const t = f - i;
   const { xs, ys, zs, txs, tzs } = ROUTE;
-  out.s = Math.min(Math.max(s, 0), ROUTE_LENGTH);
+  out.s = Math.min(Math.max(s, 0), ROUTE.length);
   out.x = xs[i] + (xs[i + 1] - xs[i]) * t;
   out.y = ys[i] + (ys[i + 1] - ys[i]) * t;
   out.z = zs[i] + (zs[i + 1] - zs[i]) * t;
@@ -154,7 +141,12 @@ const COARSE = 8;
  * qo'pol, keyin atrofida aniq + kesmaga proyeksiya. Relyef qurishda ~60k marta chaqiriladi,
  * shuning uchun natija obyekti qayta ishlatiladi (`out`).
  */
-export function nearestOnRoute(x: number, z: number, out: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 }) {
+export function nearestOnRouteOf(
+  ROUTE: Route,
+  x: number,
+  z: number,
+  out: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 },
+): NearestResult {
   const { xs, zs, ys, count } = ROUTE;
   let best = 0;
   let bestD = Infinity;

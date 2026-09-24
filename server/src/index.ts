@@ -1,8 +1,19 @@
 import { createServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
-import { NET, RACE, ROOM, type ClientToServerEvents, type ServerToClientEvents } from '@game/shared';
-import { RoomManager, roomInfo, snapshotOf, type Room } from './rooms';
-import { normalizeCode, parseCar, parseNetState, sanitizeName } from './validation';
+import {
+  DEFAULT_SEASON,
+  DEFAULT_TRACK,
+  DEFAULT_WEATHER,
+  NET,
+  RACE,
+  ROOM,
+  sanitizeUpgrades,
+  type ClientToServerEvents,
+  type RaceSettings,
+  type ServerToClientEvents,
+} from '@game/shared';
+import { RoomManager, effectiveUpgrades, roomInfo, snapshotOf, trackOf, type Room } from './rooms';
+import { normalizeCode, parseCar, parseNetState, parseSettings, sanitizeName } from './validation';
 import { validateMove } from './antiCheat';
 import { collectCoin, passCheckpoint, results, shouldEnd, standings } from './race';
 
@@ -11,6 +22,13 @@ const PORT = Number(process.env.PORT) || NET.DEFAULT_PORT;
 const CORS_ORIGIN = process.env.CORS_ORIGIN?.split(',') ?? '*';
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+
+const DEFAULT_SETTINGS: RaceSettings = {
+  trackId: DEFAULT_TRACK,
+  season: DEFAULT_SEASON,
+  weather: DEFAULT_WEATHER,
+  upgradesEnabled: true,
+};
 
 const rooms = new RoomManager();
 
@@ -99,7 +117,8 @@ io.on('connection', (socket: GameSocket) => {
       const name = sanitizeName(payload?.name);
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       leaveRoom(socket);
-      const room = rooms.create(socket.id, name, parseCar(payload?.car));
+      const settings = parseSettings(payload?.settings, DEFAULT_SETTINGS);
+      const room = rooms.create(socket.id, name, parseCar(payload?.car), sanitizeUpgrades(payload?.upgrades), settings);
       socket.join(room.code);
       console.log(`[room] ${room.code} yaratildi (${name})`);
       ack({ ok: true, data: roomInfo(room) });
@@ -115,7 +134,7 @@ io.on('connection', (socket: GameSocket) => {
       if (!name) return ack({ ok: false, error: 'Ism kiriting' });
       if (!code) return ack({ ok: false, error: `Kod ${ROOM.CODE_LENGTH} belgidan iborat bo'lishi kerak` });
       leaveRoom(socket);
-      const result = rooms.join(code, socket.id, name, parseCar(payload?.car));
+      const result = rooms.join(code, socket.id, name, parseCar(payload?.car), sanitizeUpgrades(payload?.upgrades));
       if (typeof result === 'string') return ack({ ok: false, error: JOIN_ERRORS[result] });
       socket.join(code);
       console.log(`[room] ${code}: ${name} qo'shildi (${result.players.size} o'yinchi)`);
@@ -125,6 +144,20 @@ io.on('connection', (socket: GameSocket) => {
   );
 
   socket.on('room:leave', safe(() => leaveRoom(socket)));
+
+  socket.on(
+    'room:settings',
+    safe((payload, ack) => {
+      if (typeof ack !== 'function') return;
+      const room = rooms.roomOf(socket.id);
+      if (!room) return ack({ ok: false, error: 'Siz xonada emassiz' });
+      if (room.hostId !== socket.id) return ack({ ok: false, error: "Faqat xona egasi o'zgartira oladi" });
+      if (room.phase !== 'lobby') return ack({ ok: false, error: 'Poyga paytida o`zgartirib bo`lmaydi' });
+      room.settings = parseSettings(payload, room.settings);
+      ack({ ok: true, data: null });
+      broadcastRoom(room);
+    }),
+  );
 
   socket.on(
     'race:start',
@@ -200,7 +233,15 @@ io.on('connection', (socket: GameSocket) => {
       const state = parseNetState(raw);
       if (!player || !state) return;
       const now = Date.now();
-      const check = validateMove(player.last, state, now, player.slot, player.nextCheckpoint - 1);
+      const check = validateMove(
+        player.last,
+        state,
+        now,
+        trackOf(room),
+        player.slot,
+        player.nextCheckpoint - 1,
+        effectiveUpgrades(room, player),
+      );
       if (!check.ok) {
         // Rad etildi — o'yinchi oxirgi to'g'ri holatga qaytariladi
         console.warn(`[anti-cheat] ${room.code}/${player.name}: ${check.reason}`);

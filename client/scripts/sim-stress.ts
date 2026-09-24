@@ -4,7 +4,7 @@
  * keskin aylanish (angvel), ag'darilish.
  *   npm run sim:stress -w client
  */
-import { CAR, ZONES, nearestOnRoute, routeAt, START } from '@game/shared';
+import { CAR } from '@game/shared';
 import { computeDrive } from '../src/game/car/driveLogic';
 import { applyDriveCommand } from '../src/game/car/vehicleSetup';
 import {
@@ -14,16 +14,21 @@ import {
   forwardSpeed,
   teleport,
   terrainCollider,
+  track,
   upright,
   vehicle,
   world,
+  stats,
   yawOfBody,
 } from './simWorld';
 
+const { START, BRIDGE, nearestOnRoute, routeAt, def } = track;
+// Birinchi o'rmon zonasi oxirigacha (hamma trassa o'rmondan boshlanadi); ko'prik collideri bu testda yo'q — undan oldin to'xtaymiz
+const FOREST_END = Math.min(def.zones[0].end, BRIDGE ? BRIDGE.start : Infinity);
 const near = { s: 0, dist: 0, lateral: 0, roadY: 0 };
 
 function run(label: string, speedMultiplier: number) {
-  teleport(...START.position, START.yaw);
+  teleport(START.position[0], START.position[1], START.position[2], START.yaw);
   let steer = 0;
   let t = 0;
   let chassisContacts = 0;
@@ -36,7 +41,7 @@ function run(label: string, speedMultiplier: number) {
   while (t < 60) {
     const p = body.translation();
     const n = nearestOnRoute(p.x, p.z, near);
-    if (n.s > ZONES.FOREST_END - 40) break;
+    if (n.s > FOREST_END - 40) break;
 
     const target = routeAt(n.s + 14);
     let diff = Math.atan2(target.x - p.x, target.z - p.z) - yawOfBody();
@@ -48,9 +53,10 @@ function run(label: string, speedMultiplier: number) {
       speed,
       DT,
       speedMultiplier,
+      stats,
     );
     steer = cmd.steer;
-    applyDriveCommand(vehicle, cmd);
+    applyDriveCommand(vehicle, cmd, stats);
     vehicle.updateVehicle(DT);
     world.step();
     t += DT;

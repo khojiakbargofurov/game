@@ -85,6 +85,8 @@ body,
   gap: 10px;
   width: min(360px, calc(100vw - 32px));
   box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 
 .panel .subtitle {
@@ -669,4 +671,171 @@ body,
   width: 100%;
   max-width: 64px;
   height: auto;
+}
+
+/* ───── Menyu: ikki ustun (tor ekranda — bitta, aylantiriladi) ───── */
+
+.panel.menu.wide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+  row-gap: 10px;
+  width: min(780px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.panel.menu.wide > header,
+.panel.menu.wide > .note,
+.panel.menu.wide > .error {
+  grid-column: 1 / -1;
+}
+
+.menu-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .panel.menu.wide {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+}
+
+.race-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.track-picker button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 6px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #efe0cc !important;
+  color: #8a6a50;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.track-picker button span {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.track-picker button.active {
+  border-color: #e0572b;
+  background: #fff !important;
+  color: #3a2618;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.race-settings .segmented button:disabled,
+.track-picker button:disabled {
+  opacity: 0.35;
+}
+
+.panel button.garage-btn {
+  background: #3f6d33;
+}
+
+.panel button.garage-btn:hover:not(:disabled) {
+  background: #335a29;
+}
+
+/* ───── Garaj ───── */
+
+.panel.garage {
+  width: min(420px, calc(100vw - 32px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.panel.garage h2 {
+  margin: 0;
+}
+
+.wallet {
+  margin: 0;
+  font-size: 20px;
+}
+
+.upgrades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upgrades li {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #efe0cc;
+  text-align: left;
+}
+
+.u-icon {
+  font-size: 24px;
+}
+
+.u-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #8a6a50;
+}
+
+.u-info strong {
+  font-size: 15px;
+  color: #3a2618;
+}
+
+.u-level {
+  display: flex;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.u-level i {
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: #d9c4a8;
+}
+
+.u-level i.on {
+  background: #e0572b;
+}
+
+.upgrades button {
+  min-width: 72px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.upgrade-toggle {
+  margin-top: 4px;
 }

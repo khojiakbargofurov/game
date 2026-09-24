@@ -1,4 +1,6 @@
-import { BOOSTS, COINS } from '@game/shared';
+// Hajm — eng ko'p tangali/boostli trassaga yetarli (trassalar ~1400 m: ~120 tanga, 6 boost)
+const MAX_COINS = 512;
+const MAX_BOOSTS = 32;
 
 /**
  * Tanga/boost holati — har kadrda o'qiladi, shuning uchun zustand emas, oddiy typed array.
@@ -6,9 +8,9 @@ import { BOOSTS, COINS } from '@game/shared';
  */
 export const pickups = {
   /** 1 = tanga olingan */
-  coins: new Uint8Array(COINS.length),
+  coins: new Uint8Array(MAX_COINS),
   /** Boost olingan vaqt (performance.now()); 0 = mavjud */
-  boostTakenAt: new Float64Array(BOOSTS.length),
+  boostTakenAt: new Float64Array(MAX_BOOSTS),
 };
 
 export function resetPickups() {

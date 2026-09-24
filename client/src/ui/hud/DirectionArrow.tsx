@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { CHECKPOINTS } from '@game/shared';
 import { useGameStore } from '../../store/gameStore';
+import { useTrack } from '../../store/raceSettings';
 import { computeGuidance } from './guidance';
 import { useAnimationFrame } from './useAnimationFrame';
 
@@ -8,6 +8,7 @@ import { useAnimationFrame } from './useAnimationFrame';
 export function DirectionArrow() {
   const next = useGameStore((s) => s.nextCheckpoint);
   const phase = useGameStore((s) => s.phase);
+  const { CHECKPOINTS } = useTrack();
   const arrow = useRef<SVGSVGElement>(null);
   const dist = useRef<HTMLSpanElement>(null);
   const warn = useRef<HTMLDivElement>(null);

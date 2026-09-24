@@ -1,10 +1,35 @@
 /**
  * Headless simulyatsiyalar uchun umumiy dunyo: relyef trimesh + mashina (o'yindagi bilan bir xil).
+ * Argumentlar: [trackId] [weather] [max], masalan `npm run sim:route -w client -- mountain rain max`
+ * (`max` — barcha upgrade'lar 5-darajada).
  */
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PlaneGeometry } from 'three';
-import { CAR, START, WORLD, terrainHeight } from '@game/shared';
+import {
+  CAR,
+  DEFAULT_TRACK,
+  DEFAULT_WEATHER,
+  MAX_UPGRADE_LEVEL,
+  NO_UPGRADES,
+  WEATHER_FX,
+  WORLD,
+  carStats,
+  getTrack,
+  isTrackId,
+  isWeather,
+} from '@game/shared';
 import { createVehicleController } from '../src/game/car/vehicleSetup';
+
+const [trackArg, weatherArg, levelArg] = process.argv.slice(2);
+export const track = getTrack(isTrackId(trackArg) ? trackArg : DEFAULT_TRACK);
+export const weather = isWeather(weatherArg) ? weatherArg : DEFAULT_WEATHER;
+const L = levelArg === 'max' ? MAX_UPGRADE_LEVEL : 0;
+export const stats = carStats(
+  levelArg === 'max' ? { engine: L, grip: L, boost: L, steering: L } : NO_UPGRADES,
+  WEATHER_FX[weather].grip,
+);
+const { START, terrainHeight } = track;
+console.log(`Trassa: ${track.def.name} (${track.ROUTE_LENGTH} m), ob-havo: ${weather}, upgrade: ${L}`);
 
 await RAPIER.init();
 export const DT = 1 / 60;
@@ -23,7 +48,7 @@ export const terrainCollider = world.createCollider(
 const [HX, HY, HZ] = CAR.CHASSIS_HALF_EXTENTS;
 export const body = world.createRigidBody(
   RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(...START.position)
+    .setTranslation(START.position[0], START.position[1], START.position[2])
     .setAngularDamping(CAR.ANGULAR_DAMPING)
     .setCanSleep(false),
 );
@@ -42,7 +67,7 @@ export const chassisCollider = world.createCollider(
     ),
   body,
 );
-export const vehicle = createVehicleController(world, body);
+export const vehicle = createVehicleController(world, body, stats);
 
 
 /** Mashina tezligi oldinga yo'nalishda (m/s) */

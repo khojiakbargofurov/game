@@ -4,7 +4,7 @@
  */
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PlaneGeometry } from 'three';
-import { WORLD, sampleTerrain, type TerrainSample } from '@game/shared';
+import { DEFAULT_TRACK, WORLD, getTrack, isTrackId, type TerrainSample } from '@game/shared';
 import { generatePlacements } from '../src/game/scenery/placement';
 
 const time = async <T>(label: string, fn: () => T | Promise<T>) => {
@@ -13,6 +13,10 @@ const time = async <T>(label: string, fn: () => T | Promise<T>) => {
   console.log(`${label.padEnd(34)} ${(performance.now() - t0).toFixed(0).padStart(6)} ms`);
   return r;
 };
+
+const arg = process.argv[2];
+const track = getTrack(isTrackId(arg) ? arg : DEFAULT_TRACK);
+const { sampleTerrain } = track;
 
 await time('Rapier WASM init', () => RAPIER.init());
 
@@ -25,7 +29,7 @@ const geo = await time('Relyef: 63k nuqta sampleTerrain', () => {
   return g;
 });
 
-await time('Manzara joylashuvi', () => generatePlacements());
+await time('Manzara joylashuvi', () => generatePlacements(track));
 
 await time('Rapier trimesh collider (125k tri)', () => {
   const world = new RAPIER.World({ x: 0, y: -20, z: 0 });

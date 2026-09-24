@@ -16,12 +16,14 @@ export interface QualityPreset {
   /** Faqat vizual (collidersiz) manzara ulushi */
   sceneryDensity: number;
   fogFar: number;
+  /** Yomg'ir/qor zarrachalari soni */
+  weatherParticles: number;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
-  low: { dpr: [0.75, 1], antialias: false, shadows: false, shadowMapSize: 512, sceneryDensity: 0.35, fogFar: 190 },
-  medium: { dpr: [1, 1.25], antialias: true, shadows: true, shadowMapSize: 1024, sceneryDensity: 0.7, fogFar: 230 },
-  high: { dpr: [1, 1.75], antialias: true, shadows: true, shadowMapSize: 2048, sceneryDensity: 1, fogFar: 260 },
+  low: { dpr: [0.75, 1], antialias: false, shadows: false, shadowMapSize: 512, sceneryDensity: 0.35, fogFar: 190, weatherParticles: 700 },
+  medium: { dpr: [1, 1.25], antialias: true, shadows: true, shadowMapSize: 1024, sceneryDensity: 0.7, fogFar: 230, weatherParticles: 1600 },
+  high: { dpr: [1, 1.75], antialias: true, shadows: true, shadowMapSize: 2048, sceneryDensity: 1, fogFar: 260, weatherParticles: 2800 },
 };
 
 export const QUALITY_LABELS: Record<Quality, string> = { low: 'Past', medium: "O'rta", high: 'Yuqori' };

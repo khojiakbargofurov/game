@@ -5,14 +5,11 @@
  */
 import { io, type Socket } from 'socket.io-client';
 import {
-  CHECKPOINTS,
+  DEFAULT_TRACK,
   NET,
   RACE,
   ROOM,
-  ROUTE_LENGTH,
-  gridSpawn,
-  nearestOnRoute,
-  routeAt,
+  getTrack,
   type AckResult,
   type RaceResult,
   type ClientToServerEvents,
@@ -21,6 +18,8 @@ import {
 } from '@game/shared';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
+// Sozlamasiz yaratilgan xona — standart trassada
+const { CHECKPOINTS, ROUTE_LENGTH, gridSpawn, nearestOnRoute, routeAt } = getTrack(DEFAULT_TRACK);
 const URL = process.env.SERVER_URL ?? `http://localhost:${NET.DEFAULT_PORT}`;
 const clients: Client[] = [];
 let failures = 0;
@@ -213,6 +212,36 @@ async function main() {
     for (let i = 1; i < ROOM.MAX_PLAYERS; i++) await join(await connect(), full.data.code, `P${i}`);
     const extra = await join(await connect(), full.data.code, 'Ortiqcha');
     check(!extra.ok, `${ROOM.MAX_PLAYERS + 1}-o'yinchi rad etiladi`);
+  }
+
+  // Xona sozlamalari va upgrade'lar
+  const h = await connect();
+  const g = await connect();
+  const configured = await new Promise<AckResult<RoomInfo>>((r) =>
+    h.emit(
+      'room:create',
+      { name: 'Sozlovchi', upgrades: { engine: 99, grip: -3, boost: 2.7, steering: 1 }, settings: { trackId: 'lake', weather: 'snow' } },
+      r,
+    ),
+  );
+  if (configured.ok) {
+    const info = configured.data;
+    check(info.settings.trackId === 'lake' && info.settings.weather === 'snow', 'xona menyudagi sharoit bilan yaratildi');
+    const u = info.players[0].upgrades;
+    check(u.engine === 5 && u.grip === 0 && u.boost === 2 && u.steering === 1, 'upgrade darajalari 0..5 ga cheklandi');
+    await join(g, info.code, 'Mehmon2');
+    const settings = (c: Client, patch: object) =>
+      new Promise<AckResult<null>>((r) => c.emit('room:settings', patch as never, r));
+    check(!(await settings(g, { trackId: 'mountain' })).ok, 'host bo`lmagan o`yinchi sozlamani o`zgartira olmaydi');
+    const upd = new Promise<RoomInfo>((r) => g.once('room:update', r));
+    check((await settings(h, { trackId: 'mountain', season: 'winter', upgradesEnabled: false })).ok, 'host sozlamani o`zgartirdi');
+    const after = await upd;
+    check(
+      after.settings.trackId === 'mountain' && after.settings.season === 'winter' && after.settings.weather === 'snow',
+      'yangi sozlamalar hammaga yuborildi',
+    );
+    check(after.players.every((p) => Object.values(p.upgrades).every((v) => v === 0)), 'upgrade o`chirilganda hamma 0-darajada');
+    check((await settings(h, { trackId: 'yoq-trassa' })).ok, "noma'lum trassa e'tiborsiz qoldiriladi");
   }
 }
 

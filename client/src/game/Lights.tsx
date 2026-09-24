@@ -1,9 +1,10 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { DirectionalLight } from 'three';
-import { COLORS, LIGHTING } from '@game/shared';
+import { LIGHTING } from '@game/shared';
 import { carTarget } from './carTarget';
 import { usePreset } from '../store/quality';
+import { usePalette, useWeatherFx } from '../store/raceSettings';
 
 const [SX, SY, SZ] = LIGHTING.SUN_POSITION;
 
@@ -15,6 +16,9 @@ const [SX, SY, SZ] = LIGHTING.SUN_POSITION;
 export function Lights() {
   const sun = useRef<DirectionalLight>(null);
   const { shadows, shadowMapSize } = usePreset();
+  // Fasl ranglari; bulutli (yomg'ir/qor) havoda quyosh xiraroq
+  const COLORS = usePalette();
+  const { sunScale } = useWeatherFx();
 
   useFrame(() => {
     const light = sun.current;
@@ -32,7 +36,7 @@ export function Lights() {
       <directionalLight
         ref={sun}
         color={COLORS.sun}
-        intensity={LIGHTING.SUN_INTENSITY}
+        intensity={LIGHTING.SUN_INTENSITY * sunScale}
         castShadow={shadows}
         // key — o'lcham o'zgarsa shadow map qayta yaratiladi
         key={shadowMapSize}

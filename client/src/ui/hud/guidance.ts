@@ -1,6 +1,7 @@
-import { CHECKPOINTS, nearestOnRoute, routeAt, type NearestResult, type RouteFrame } from '@game/shared';
+import type { NearestResult, RouteFrame } from '@game/shared';
 import { Vector3 } from 'three';
 import { carTarget } from '../../game/carTarget';
+import { activeTrack } from '../../store/raceSettings';
 
 export interface Guidance {
   /** Strelka burchagi (radian): 0 = to'g'ri oldinga, musbat = o'ngga */
@@ -23,6 +24,7 @@ const LOOK_AHEAD = 35;
  * qaratiladi — aks holda strelka tog' yoki kanyon devori orqali ko'rsatardi.
  */
 export function computeGuidance(nextCheckpoint: number): Guidance | null {
+  const { CHECKPOINTS, nearestOnRoute, routeAt } = activeTrack();
   const cp = CHECKPOINTS[nextCheckpoint];
   if (!cp) return null;
   const { x, z } = carTarget.position;

@@ -3,6 +3,7 @@ import { CAR } from '@game/shared';
 import { carTarget } from '../../game/carTarget';
 import { useGameStore } from '../../store/gameStore';
 import { useAnimationFrame } from './useAnimationFrame';
+import { ownCarStats } from '../../store/garage';
 
 const MAX_KMH = Math.round(CAR.MAX_SPEED * CAR.BOOST_MULTIPLIER * 3.6); // shkala oxiri (boost bilan)
 const R = 54;
@@ -35,7 +36,7 @@ export function SpeedGauge() {
     if (value.current) value.current.textContent = String(Math.round(shown.current));
     const left = useGameStore.getState().boostUntil - performance.now();
     if (boostBar.current) {
-      boostBar.current.style.transform = `scaleX(${Math.max(0, left) / CAR.BOOST_DURATION_MS})`;
+      boostBar.current.style.transform = `scaleX(${Math.max(0, left) / ownCarStats().boostDurationMs})`;
       boostBar.current.parentElement!.hidden = left <= 0;
     }
   });

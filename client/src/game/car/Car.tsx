@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, useBeforePhysicsStep, type RapierRigidBody } from '@react-three/rapier';
 import { Euler, Quaternion, Vector3, type Group } from 'three';
-import { CAR, WORLD, nearestOnRoute, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
+import { CAR, WORLD, type NearestResult, type NetState, type SpawnPoint } from '@game/shared';
 import { attachKeyboard, consumeRespawn, input } from '../../input/keyboard';
 import { useGameStore } from '../../store/gameStore';
 import { controlsEnabled, useNetStore } from '../../store/netStore';
@@ -11,6 +11,8 @@ import { CarBody } from './CarBody';
 import { Wheel } from './Wheel';
 import { useCarModel } from './carGeometry';
 import { useCarChoice } from '../../store/carChoice';
+import { activeTrack } from '../../store/raceSettings';
+import { ownCarStats } from '../../store/garage';
 import { computeDrive } from './driveLogic';
 import { useVehicleController } from './useVehicleController';
 import { WHEEL_COUNT, applyDriveCommand } from './vehicleSetup';
@@ -26,7 +28,7 @@ const near: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 };
 function fellOffTrack(rb: RapierRigidBody) {
   const p = rb.translation();
   if (p.y < WORLD.KILL_Y) return true;
-  const n = nearestOnRoute(p.x, p.z, near);
+  const n = activeTrack().nearestOnRoute(p.x, p.z, near);
   return n.dist < WORLD.OFF_TRACK_RADIUS && p.y < n.roadY - WORLD.OFF_TRACK_DROP;
 }
 
@@ -142,10 +144,12 @@ export function Car() {
       }
     }
     const keys = controlsEnabled() ? input : IDLE_INPUT;
-    const cmd = computeDrive(steer.current, keys, speed, dt, boosting ? CAR.BOOST_MULTIPLIER : 1);
+    // Upgrade'lar va ob-havo (sirpanchiq yo'l) — har qadamda (poygalar orasida o'zgarishi mumkin)
+    const stats = ownCarStats();
+    const cmd = computeDrive(steer.current, keys, speed, dt, boosting ? CAR.BOOST_MULTIPLIER : 1, stats);
     steer.current = cmd.steer;
 
-    applyDriveCommand(v, cmd);
+    applyDriveCommand(v, cmd, stats);
     v.updateVehicle(dt);
   });
 

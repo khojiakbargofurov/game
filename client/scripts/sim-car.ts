@@ -5,10 +5,11 @@
  * O'yindagi drive/vehicle kodi bilan bir necha ssenariy o'ynaladi
  * (tezlanish, maksimal tezlik, tormoz, burilish, drift, orqaga yurish).
  */
-import { START } from '@game/shared';
 import { computeDrive, type DriveInput } from '../src/game/car/driveLogic';
 import { applyDriveCommand } from '../src/game/car/vehicleSetup';
-import { DT, body, forwardSpeed, teleport, upright, vehicle, world, yawOfBody } from './simWorld';
+import { DT, body, forwardSpeed, stats, teleport, track, upright, vehicle, world, yawOfBody } from './simWorld';
+
+const { START } = track;
 
 let steer = 0;
 const yawDeg = () => (yawOfBody() * 180) / Math.PI;
@@ -17,9 +18,9 @@ function run(label: string, seconds: number, keys: Partial<DriveInput>) {
   const input: DriveInput = { forward: false, backward: false, left: false, right: false, handbrake: false, ...keys };
   const steps = Math.round(seconds / DT);
   for (let s = 0; s < steps; s++) {
-    const cmd = computeDrive(steer, input, forwardSpeed(), DT);
+    const cmd = computeDrive(steer, input, forwardSpeed(), DT, 1, stats);
     steer = cmd.steer;
-    applyDriveCommand(vehicle, cmd);
+    applyDriveCommand(vehicle, cmd, stats);
     vehicle.updateVehicle(DT);
     world.step();
   }
@@ -33,7 +34,7 @@ function run(label: string, seconds: number, keys: Partial<DriveInput>) {
 }
 
 function reset() {
-  teleport(...START.position, START.yaw);
+  teleport(START.position[0], START.position[1], START.position[2], START.yaw);
   steer = 0;
   run('  settle', 1, {});
 }

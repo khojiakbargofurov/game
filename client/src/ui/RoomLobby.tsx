@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ROOM } from '@game/shared';
-import { backToMenu, startOnlineRace } from '../net/session';
+import { backToMenu, startOnlineRace, updateRoomSettings } from '../net/session';
 import { useNetStore } from '../store/netStore';
+import { RaceSettingsPicker } from './RaceSettingsPicker';
 
 /** Xona: kod, o'yinchilar ro'yxati, host uchun "Start" */
 export function RoomLobby() {
@@ -48,6 +49,24 @@ export function RoomLobby() {
         <p className="note">
           {room.players.length}/{ROOM.MAX_PLAYERS} o'yinchi
         </p>
+
+        <RaceSettingsPicker value={room.settings} onChange={isHost ? updateRoomSettings : undefined} />
+        <div className="divider">upgrade'lar</div>
+        <div className="segmented upgrade-toggle" role="radiogroup" aria-label="Upgrade'lar">
+          {[true, false].map((on) => (
+            <button
+              key={String(on)}
+              role="radio"
+              aria-checked={room.settings.upgradesEnabled === on}
+              className={room.settings.upgradesEnabled === on ? 'active' : undefined}
+              disabled={!isHost && room.settings.upgradesEnabled !== on}
+              onClick={() => isHost && updateRoomSettings({ upgradesEnabled: on })}
+            >
+              {on ? '🔧 Yoqilgan' : '⚖️ Hamma teng'}
+            </button>
+          ))}
+        </div>
+        {!isHost && <p className="note">Sharoitni xona egasi tanlaydi</p>}
 
         {isHost ? (
           <button className="primary" onClick={startOnlineRace} disabled={!enough}>

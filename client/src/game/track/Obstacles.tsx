@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { CylinderCollider, RigidBody } from '@react-three/rapier';
-import { COLORS, FALLEN_PILLARS, LOGS, roadHalfWidth, trackPoint } from '@game/shared';
+import { COLORS, type Track } from '@game/shared';
+import { usePalette, useTrack } from '../../store/raceSettings';
 
 interface Lying {
   position: [number, number, number];
@@ -12,7 +13,7 @@ interface Lying {
  * Yo'lga ko'ndalang yotgan to'siq: yo'l chetidan (`side` tomondan) ichkariga `length` metr kiradi.
  * Group'ning lokal +X o'qi = yo'lning chap tomoni.
  */
-function placeAcross(s: number, side: number, length: number, radius: number): Lying {
+function placeAcross({ roadHalfWidth, trackPoint }: Track, s: number, side: number, length: number, radius: number): Lying {
   const hw = roadHalfWidth(s);
   const center = side * (hw + 2 - length / 2);
   const p = trackPoint(s, center, radius - 0.1);
@@ -21,6 +22,7 @@ function placeAcross(s: number, side: number, length: number, radius: number): L
 
 /** Yiqilgan daraxt: tana + ildiz + yo'l chetidagi shox-barglar */
 function Log({ position, yaw, length, side }: Lying & { side: number }) {
+  const leaves = usePalette().leaves;
   const r = 0.45;
   return (
     <RigidBody type="fixed" colliders={false} position={position} rotation={[0, yaw, 0]}>
@@ -37,7 +39,7 @@ function Log({ position, yaw, length, side }: Lying & { side: number }) {
       {/* Uchidagi barglar — yo'l ichida, ko'rinib turadigan ogohlantirish */}
       <mesh position={[-side * (length / 2 - 0.4), 0.5, 0]} rotation={[0, 0, side * 1.2]} castShadow>
         <coneGeometry args={[1.1, 2.2, 6]} />
-        <meshStandardMaterial color={COLORS.leaves} flatShading />
+        <meshStandardMaterial color={leaves} flatShading />
       </mesh>
     </RigidBody>
   );
@@ -67,12 +69,13 @@ function FallenPillar({ position, yaw, length }: Lying) {
 }
 
 export function Obstacles() {
+  const track = useTrack();
   const { logs, pillars } = useMemo(
     () => ({
-      logs: LOGS.map((l) => ({ ...placeAcross(l.s, l.side, l.length, 0.45), side: l.side })),
-      pillars: FALLEN_PILLARS.map((p) => placeAcross(p.s, p.side, p.length, 0.7)),
+      logs: track.LOGS.map((l) => ({ ...placeAcross(track, l.s, l.side, l.length, 0.45), side: l.side })),
+      pillars: track.FALLEN_PILLARS.map((p) => placeAcross(track, p.s, p.side, p.length, 0.7)),
     }),
-    [],
+    [track],
   );
   return (
     <>

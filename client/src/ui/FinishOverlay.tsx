@@ -1,5 +1,6 @@
 import { backToMenu, resetRoom, startSolo } from '../net/session';
 import { useGameStore } from '../store/gameStore';
+import { useGarage } from '../store/garage';
 import { useNetStore, usePlace } from '../store/netStore';
 import { formatTime } from './formatTime';
 
@@ -16,6 +17,8 @@ function ResultsTable() {
   const selfId = useNetStore((s) => s.selfId);
   const isHost = useNetStore((s) => s.room?.players.some((p) => p.id === s.selfId && p.isHost) ?? false);
   const error = useNetStore((s) => s.error);
+  const wallet = useGarage((s) => s.wallet);
+  const mine = results.find((r) => r.playerId === selfId);
 
   return (
     <div className="overlay">
@@ -44,6 +47,11 @@ function ResultsTable() {
             ))}
           </tbody>
         </table>
+        {mine && (
+          <p className="note">
+            +{mine.coins} tanga garajga (jami 🪙 {wallet})
+          </p>
+        )}
         {isHost ? (
           <>
             <button className="primary" onClick={blurThen(() => resetRoom(true))}>
@@ -85,6 +93,7 @@ export function FinishOverlay() {
   const coins = useGameStore((s) => s.coins);
   const mode = useNetStore((s) => s.mode);
   const results = useNetStore((s) => s.results);
+  const wallet = useGarage((s) => s.wallet);
 
   if (mode === 'online') {
     if (results) return <ResultsTable />;
@@ -98,7 +107,9 @@ export function FinishOverlay() {
       <div className="panel">
         <h1>🏁 Marra!</h1>
         <p className="big">{formatTime(finishedAt - startedAt)}</p>
-        <p>Tangalar: {coins}</p>
+        <p>
+          Tangalar: {coins} → garajga qo'shildi (jami 🪙 {wallet})
+        </p>
         <button className="primary" onClick={blurThen(startSolo)}>
           Qayta o'ynash
         </button>
