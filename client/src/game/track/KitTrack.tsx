@@ -4,22 +4,25 @@ import { CuboidCollider, RigidBody, TrimeshCollider } from '@react-three/rapier'
 import {
   BufferAttribute,
   Box3,
+  Color,
   Matrix4,
   MeshStandardMaterial,
   Vector3,
   type BufferGeometry,
   type Mesh,
   type Object3D,
+  type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { tileVertex, type PropDef, type Track } from '@game/shared';
-import { useTrack } from '../../store/raceSettings';
+import { tileVertex, type Palette, type PropDef, type Track } from '@game/shared';
+import { usePalette, useTrack } from '../../store/raceSettings';
 
 /**
  * Plitkali trassa (Kenney Racing Kit, client/public/kit/): yo'l plitkalari va jihozlar (tribunalar, pit binolari,
- * chodirlar, daraxtlar...). Hammasi ikkita birlashtirilgan geometriyaga yig'iladi (yo'l + jihozlar = 2 draw call),
- * ranglar vertex rangda. Yer sathidagi yo'l faqat vizual — fizika tekis relyefda; ko'tarilgan plitkalar (rampa,
- * ko'prik) — trimesh collider; qattiq jihozlarga quti collider.
+ * chodirlar, daraxtlar...). Rangli qismlar ikkita birlashtirilgan geometriyaga (yo'l + jihozlar), teksturali qismlar
+ * (logotip, shaxmat bayroq) — tekstura bo'yicha alohida geometriyaga yig'iladi. Yer sathidagi yo'l faqat vizual —
+ * fizika tekis relyefda; ko'tarilgan plitkalar (rampa, ko'prik) — trimesh collider; qattiq jihozlarga quti collider.
+ * Plitka chetidagi o't va daraxt barglari — fasl palitrasidan.
  */
 
 const kitUrl = (model: string) => `${import.meta.env.BASE_URL}kit/${model}.glb`;
@@ -27,36 +30,66 @@ const kitUrl = (model: string) => `${import.meta.env.BASE_URL}kit/${model}.glb`;
 /** Jihozlar masshtabi: kit birligi → metr (mashinaga nisbatan to'g'ri o'lcham; yo'l plitkasi kattaroq — TILE_SIZE) */
 const PROP_SCALE = 12;
 
+/** Model qismlari: rangli (vertex rang) va teksturali (material nomi bo'yicha: 'tankco', 'checkers') */
 interface Baked {
-  geometry: BufferGeometry;
+  plain: BufferGeometry | null;
+  textured: { key: string; geometry: BufferGeometry; map: Texture }[];
   /** Model chegaralari (kit birliklarida) */
   box: Box3;
 }
 
-/** Modelning barcha meshlari — o'z koordinatalarida, vertex rangli (bir marta, keyin nusxalanadi) */
-function bakeModel(scene: Object3D): Baked {
+/** Material rangini fasl palitrasi bilan almashtirish (bo'lmasa — undefined) */
+type Tint = (material: string) => Color | undefined;
+
+function bakeModel(scene: Object3D, tint: Tint): Baked {
   scene.updateMatrixWorld(true);
-  const parts: BufferGeometry[] = [];
+  const plain: BufferGeometry[] = [];
+  const textured: Baked['textured'] = [];
   scene.traverse((o) => {
     const mesh = o as Mesh;
     if (!mesh.isMesh) return;
+    const mat = mesh.material as MeshStandardMaterial;
     let g = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
     if (g.index) g = g.toNonIndexed();
-    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+    const keep = mat.map ? ['position', 'normal', 'uv'] : ['position', 'normal'];
+    for (const name of Object.keys(g.attributes)) if (!keep.includes(name)) g.deleteAttribute(name);
     if (!g.attributes.normal) g.computeVertexNormals();
+    if (mat.map) {
+      textured.push({ key: mat.name, geometry: g, map: mat.map });
+      return;
+    }
     // Kenney ranglari aslida sRGB qiymatlar (glTF ularni chiziqli deb o'qiydi — asfalt och kulrang chiqardi)
-    const c = (mesh.material as MeshStandardMaterial).color.clone().convertSRGBToLinear();
+    const c = tint(mat.name) ?? mat.color.clone().convertSRGBToLinear();
     const n = g.attributes.position.count;
     const colors = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) colors.set([c.r, c.g, c.b], i * 3);
     g.setAttribute('color', new BufferAttribute(colors, 3));
-    parts.push(g);
+    plain.push(g);
   });
-  const geometry = mergeGeometries(parts)!;
-  geometry.computeBoundingBox();
-  return { geometry, box: geometry.boundingBox!.clone() };
+  const all = [...plain, ...textured.map((t) => t.geometry)];
+  const box = new Box3();
+  for (const g of all) {
+    g.computeBoundingBox();
+    box.union(g.boundingBox!);
+  }
+  return { plain: plain.length ? mergeGeometries(plain) : null, textured, box };
 }
 
+/** Joylashtirilgan qismlar yig'indisi: rangli va har tekstura uchun alohida ro'yxat */
+class Layer {
+  plain: BufferGeometry[] = [];
+  textured = new Map<string, { map: Texture; parts: BufferGeometry[] }>();
+
+  /** Modelning barcha qismlarini nusxalab, `place` bilan joyiga qo'yib qo'shish */
+  add(baked: Baked, place: (g: BufferGeometry) => BufferGeometry) {
+    if (baked.plain) this.plain.push(place(baked.plain.clone()));
+    for (const t of baked.textured) {
+      let entry = this.textured.get(t.key);
+      if (!entry) this.textured.set(t.key, (entry = { map: t.map, parts: [] }));
+      entry.parts.push(place(t.geometry.clone()));
+    }
+  }
+}
 
 interface Solid {
   position: [number, number, number];
@@ -69,24 +102,25 @@ const tmp = new Vector3();
 function build(track: Track, models: Map<string, Baked>) {
   const T = track.TILE_SIZE;
   const roadY = track.def.tiles!.y;
-  const road: BufferGeometry[] = [];
+  const road = new Layer();
   const elevated: BufferGeometry[] = [];
-  const props: BufferGeometry[] = [];
+  const props = new Layer();
   const solids: Solid[] = [];
   const m = new Matrix4();
 
   // ── Yo'l plitkalari (joylashuv formulasi — shared tileVertex, headless simulyatsiya bilan bir xil) ──
   const v: number[] = [0, 0, 0];
   for (const p of track.TILES) {
-    const g = models.get(p.model)!.geometry.clone();
-    const pos = g.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      tileVertex(p, T, roadY, pos.getX(i), pos.getY(i), pos.getZ(i), v);
-      pos.setXYZ(i, v[0], v[1], v[2]);
-    }
-    g.computeVertexNormals();
-    road.push(g);
-    if (p.elevated) elevated.push(g);
+    road.add(models.get(p.model)!, (g) => {
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        tileVertex(p, T, roadY, pos.getX(i), pos.getY(i), pos.getZ(i), v);
+        pos.setXYZ(i, v[0], v[1], v[2]);
+      }
+      g.computeVertexNormals();
+      if (p.elevated) elevated.push(g);
+      return g;
+    });
   }
 
   // ── Jihozlar ──
@@ -132,7 +166,7 @@ function build(track: Track, models: Map<string, Baked>) {
     const oz = z - (-cx * s + cz * c) * S;
     const y = spansRoad ? roadY : track.terrainHeight(x, z);
     m.makeRotationY(yaw).premultiply(new Matrix4().makeTranslation(ox, y, oz)).multiply(new Matrix4().makeScale(S, S, S));
-    props.push(baked.geometry.clone().applyMatrix4(m));
+    props.add(baked, (g) => g.applyMatrix4(m));
 
     if (p.solid) {
       tmp.set(x, y + ((max.y - min.y) * S) / 2, z);
@@ -145,39 +179,74 @@ function build(track: Track, models: Map<string, Baked>) {
   }
 
   const merge = (list: BufferGeometry[]) => {
+    if (!list.length) return null;
     const g = mergeGeometries(list)!;
     g.computeBoundingSphere();
     return g;
   };
+  // Teksturali qatlamlar: yo'l va jihozlardan bitta tekstura bo'yicha birlashtiriladi
+  const textured = new Map<string, { map: Texture; parts: BufferGeometry[] }>();
+  for (const layer of [road, props]) {
+    for (const [key, t] of layer.textured) {
+      const entry = textured.get(key) ?? { map: t.map, parts: [] };
+      entry.parts.push(...t.parts);
+      textured.set(key, entry);
+    }
+  }
   // Ko'tarilgan plitkalar collideri: uchlar va (indekssiz) uchburchaklar
-  const deck = elevated.length ? merge(elevated) : null;
+  const deck = merge(elevated);
   const collider = deck
     ? {
         vertices: deck.attributes.position.array as Float32Array,
         indices: Uint32Array.from({ length: deck.attributes.position.count }, (_, i) => i),
       }
     : null;
-  return { road: merge(road), props: props.length ? merge(props) : null, solids, collider };
+  return {
+    road: merge(road.plain),
+    props: merge(props.plain),
+    textured: [...textured].map(([key, t]) => ({ key, geometry: merge(t.parts)!, map: t.map })),
+    solids,
+    collider,
+  };
 }
 
 const material = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
+const texturedMaterials = new Map<Texture, MeshStandardMaterial>();
+const texturedMaterial = (map: Texture) => {
+  let m = texturedMaterials.get(map);
+  if (!m) texturedMaterials.set(map, (m = new MeshStandardMaterial({ map, flatShading: true })));
+  return m;
+};
 
 function modelNames(track: Track) {
   return [...new Set([...track.TILES.map((p) => p.model), ...(track.def.props ?? []).map((p: PropDef) => p.model)])];
 }
 
+/**
+ * Fasl ranglari: yo'l plitkalari chetidagi o't — relyef o'ti, daraxt barglari — barglar rangi (kuzda sariq, qishda qorli).
+ * Kenney 'grass' materialini boshqa joyda ham ishlatadi (yashil chodirlar) — ular o'zgarmaydi.
+ */
+function seasonTint(model: string, palette: Palette): Tint {
+  const color = model.startsWith('tree') ? new Color(palette.leaves) : model.startsWith('road') ? new Color(palette.grass) : null;
+  return (material) => (color && material === 'grass' ? color : undefined);
+}
+
 function KitScene({ track }: { track: Track }) {
+  const palette = usePalette();
   const names = useMemo(() => modelNames(track), [track]);
   const gltfs = useGLTF(names.map(kitUrl));
-  const { road, props, solids, collider } = useMemo(() => {
-    const models = new Map(names.map((n, i) => [n, bakeModel(gltfs[i].scene)]));
+  const { road, props, textured, solids, collider } = useMemo(() => {
+    const models = new Map(names.map((n, i) => [n, bakeModel(gltfs[i].scene, seasonTint(n, palette))]));
     return build(track, models);
-  }, [track, names, gltfs]);
+  }, [track, names, gltfs, palette]);
 
   return (
     <>
-      <mesh geometry={road} material={material} receiveShadow />
+      {road && <mesh geometry={road} material={material} receiveShadow />}
       {props && <mesh geometry={props} material={material} castShadow receiveShadow />}
+      {textured.map((t) => (
+        <mesh key={t.key} geometry={t.geometry} material={texturedMaterial(t.map)} castShadow receiveShadow />
+      ))}
       <RigidBody type="fixed" colliders={false}>
         {collider && <TrimeshCollider args={[collider.vertices, collider.indices]} friction={1} />}
         {solids.map((b, i) => (

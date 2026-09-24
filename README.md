@@ -165,17 +165,21 @@ Har bir trassa — faqat ma'lumot (`shared/src/tracks/*.ts`, `TrackDef`): nazora
 | **Sarguzasht** (`adventure`) | ~1300 m | o'rmon → ko'prik → kanyon (tunnel, toshlar) → xarobalar (arkalar, tor yo'lak) |
 | **Tog' dovoni** (`mountain`) | ~1400 m | o'rmonli serpantin bilan ko'tarilish → qoyali dara, tunnel, dumalaydigan toshlar |
 | **Ko'l bo'yi** (`lake`) | ~1420 m | daryo ustidan ko'prik → ko'lni aylanib o'tuvchi o'rmon yo'li → xarobalar |
-| **Gran Pri** (`circuit`) | ~1020 m × 3 aylana | Kenney Racing Kit plitkalaridan: start to'g'ri yo'li pit binolari va tribunalar orasida, katta burilishlar, "S" va shikanalar, kerblar, ichki paddok |
+| **Gran Pri** (`circuit`) | ~1090 m × 3 aylana | Kenney Racing Kit plitkalaridan 8-shakl: start to'g'ri yo'li pit binolari va tribunalar orasida, uning ustidan ko'prik, shimoliy (o'ngga) va janubiy (chapga) halqalar, kerblar, to'siqlar, paddok |
 
 **Aylanali poyga** (`laps` va `startLine` — `TrackDef`da): marshrut yopiq halqa bo'ladi, checkpointlar har aylana uchun
 takrorlanadi (`totalS` — poyga boshidan umumiy masofa), har aylana start/marra chizig'idan o'tish bilan tugaydi,
 oxirgi aylanada — marra. HUD'da "Aylana 2/3", start panjarasi chiziq ortida (F1 kabi).
 
 **Plitkali trassa** (`tiles` — `TrackDef`da, `shared/src/tracks/tiles.ts`): trassa plitkalar ketma-ketligi sifatida yoziladi —
-`['S', n]` to'g'ri, `['R' | 'L', 1 | 2 | 3]` burilish (1×1, 2×2, 3×3 plitka), `['S', 4, 'start']` start panjarasi va arkasi.
+`['S', n]` to'g'ri, `['R' | 'L', 1 | 2 | 3]` burilish (1×1, 2×2, 3×3 plitka), `['S', 4, 'start']` start panjarasi va arkasi,
+`['X', k]` ko'prik (rampa ↑, k ta ochiq oraliq, rampa ↓ — tagidan boshqa to'g'ri yo'l perpendikulyar o'ta oladi, 8-shakl).
+Ko'prik/rampalarga trimesh collider; kesishmada marshrutning to'g'ri tarmog'i balandlik bo'yicha tanlanadi
+(`nearestOnRoute(x, z, out, y)`). Headless simlar ham shu collider'lar bilan ishlaydi (`scripts/kitColliders.ts`).
 Shundan markaziy chiziq (checkpoint, botlar, server shu bilan ishlaydi) va kit modellari joylashuvi hisoblanadi; halqa yopilishi
 va plitkalar ustma-ust tushmasligi kerak. Jihozlar (`props`: tribunalar, pit binolari, chodirlar, daraxtlar...) marshrutga nisbatan
-(`s`, yon ofset) joylashadi; yo'lga tushib qolganlari avtomatik tashlab yuboriladi. Modellar — `client/public/kit/`
+(`s`, yon ofset) joylashadi; yo'lga yoki boshqa qattiq jihozga tushib qolganlari avtomatik tashlab yuboriladi.
+Logotipli qismlar (bannerlar, pit garajlari, marra bayrog'i) o'z teksturasi bilan; plitka chetidagi o't va daraxtlar — fasl ranglarida. Modellar — `client/public/kit/`
 (Kenney Racing Kit, CC0; butun kitdan faqat ishlatilgan GLB'lar).
 
 Yangi trassa qo'shish: `shared/src/tracks/` ga `TrackDef` yozib, `TRACK_DEFS` va `TrackId` ga qo'shish;
