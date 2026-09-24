@@ -5,6 +5,7 @@ import { useCarChoice } from '../store/carChoice';
 import { useGarage } from '../store/garage';
 import { useMenuChoice } from '../store/raceSettings';
 import { Garage } from './Garage';
+import { CarIcon } from './CarIcon';
 import { RaceSettingsPicker } from './RaceSettingsPicker';
 import { useNetStore } from '../store/netStore';
 import { QUALITY_LABELS, useQuality, type Quality } from '../store/quality';
@@ -99,6 +100,7 @@ export function Menu() {
 function CarPicker() {
   const car = useCarChoice((s) => s.car);
   const setCar = useCarChoice((s) => s.setCar);
+  const look = useGarage((s) => s.look);
   return (
     <div className="car-picker" role="radiogroup" aria-label="Mashina">
       {CARS.map((c) => (
@@ -109,26 +111,11 @@ function CarPicker() {
           className={c.id === car ? 'active' : undefined}
           onClick={() => setCar(c.id)}
         >
-          <CarIcon color={c.color} />
+          <CarIcon color={c.color} look={c.id === car ? look : undefined} />
           <span>{c.label}</span>
         </button>
       ))}
     </div>
-  );
-}
-
-/** Poyga mashinasi yondan (menyu uchun sodda rasm) */
-function CarIcon({ color }: { color: string }) {
-  return (
-    <svg viewBox="0 0 64 28" aria-hidden="true">
-      <path d="M4 17 L10 12 L26 11 L32 5 L40 5 L44 11 L58 12 L60 18 L4 19 Z" fill={color} stroke="#3a2618" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M33 6 L39 6 L42 11 L30 11 Z" fill="#4d6078" />
-      <rect x="54" y="6" width="6" height="3" rx="1" fill="#3a2618" />
-      <circle cx="15" cy="20" r="6" fill="#3a3330" />
-      <circle cx="15" cy="20" r="2.4" fill="#d9d4cc" />
-      <circle cx="50" cy="20" r="6" fill="#3a3330" />
-      <circle cx="50" cy="20" r="2.4" fill="#d9d4cc" />
-    </svg>
   );
 }
 

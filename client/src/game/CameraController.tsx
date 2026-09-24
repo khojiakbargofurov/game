@@ -59,6 +59,8 @@ function useOrbitDrag() {
     };
     const move = (e: PointerEvent) => {
       if (!camFx.dragging) return;
+      // Tugma boshqa joyda (masalan, oyna tashqarisida) qo'yib yuborilgan
+      if (e.buttons === 0) return void (camFx.dragging = false);
       const { SENSITIVITY, MIN_PITCH, MAX_PITCH } = CAMERA.ORBIT;
       camFx.orbitYaw = wrap(camFx.orbitYaw - (e.clientX - lastX) * SENSITIVITY);
       camFx.orbitPitch = clamp(camFx.orbitPitch + (e.clientY - lastY) * SENSITIVITY, MIN_PITCH, MAX_PITCH);
@@ -69,13 +71,20 @@ function useOrbitDrag() {
       camFx.dragging = false;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     };
+    const release = () => void (camFx.dragging = false);
     const noMenu = (e: MouseEvent) => e.preventDefault();
     el.addEventListener('pointerdown', down);
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
     el.addEventListener('contextmenu', noMenu);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('mouseup', release);
+    window.addEventListener('blur', release);
     return () => {
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('mouseup', release);
+      window.removeEventListener('blur', release);
       camFx.dragging = false;
       el.removeEventListener('pointerdown', down);
       el.removeEventListener('pointermove', move);
@@ -119,8 +128,9 @@ export function CameraController() {
       camFx.orbitYaw *= k;
       camFx.orbitPitch *= k;
     }
+    // Orbit (sichqoncha) va orqaga qarash burchagi — silliqlashdan keyin mashina atrofida aylantiriladi,
+    // shunda kamera aylanada harakatlanadi (to'g'ri chiziq bo'ylab mashina ichidan o'tib ketmaydi)
     const yaw = camFx.orbitYaw + (input.lookBack ? Math.PI : 0);
-    view.copy(heading).applyAxisAngle(UP, yaw);
 
     let sharpness: number = cfg.sharpness;
     if (intro) {
@@ -145,18 +155,13 @@ export function CameraController() {
       const [, ly, lz] = cfg.look;
       const [back, up] = pitched(oz, oy, camFx.orbitPitch);
       // Offset orqasi manfiy, shuning uchun view bo'yicha qo'shamiz
-      desired.copy(carTarget.position).addScaledVector(view, back);
-      desired.x += view.z * ox;
-      desired.z -= view.x * ox;
+      desired.copy(carTarget.position).addScaledVector(heading, back);
+      desired.x += heading.z * ox;
+      desired.z -= heading.x * ox;
       desired.y += up;
-      look.copy(carTarget.position).addScaledVector(view, lz);
+      look.copy(carTarget.position).addScaledVector(heading, lz);
       look.y += ly;
     }
-    // Kamera yer ostiga kirib ketmasin
-    if (mode !== 'hood' || intro) {
-      desired.y = Math.max(desired.y, activeTrack().terrainHeight(desired.x, desired.z) + 1.2);
-    }
-
     if (snap) {
       basePos.copy(desired);
       smoothLook.copy(look);
@@ -165,6 +170,15 @@ export function CameraController() {
     const a = damp(sharpness, dt);
     basePos.lerp(desired, a);
     smoothLook.lerp(look, a);
+
+    // Orbit: kapotda yaw look'ga kiritilgan, qolgan rejimlarda kamera mashina atrofida buriladi
+    const orbit = mode === 'hood' || intro ? 0 : yaw;
+    view.copy(basePos).sub(carTarget.position).applyAxisAngle(UP, orbit).add(carTarget.position);
+    local.copy(smoothLook).sub(carTarget.position).applyAxisAngle(UP, orbit).add(carTarget.position);
+    // Kamera yer ostiga kirib ketmasin
+    if (mode !== 'hood' || intro) {
+      view.y = Math.max(view.y, activeTrack().terrainHeight(view.x, view.z) + 1.2);
+    }
 
     // ─── Effektlar ───
     const speedRatio = Math.min(Math.abs(carTarget.speed) / CAR.MAX_SPEED, 1.5);
@@ -180,8 +194,8 @@ export function CameraController() {
     // Kapotda silkinish kamroq (kamera mashinaga yaqin — kuchli sezildi)
     if (mode === 'hood') shake.multiplyScalar(0.3);
 
-    camera.position.copy(basePos).add(shake);
-    camera.lookAt(smoothLook);
+    camera.position.copy(view).add(shake);
+    camera.lookAt(local);
 
     // Burilishda og'ish: yaw burchak tezligi × tezlik ulushi
     const carYaw = Math.atan2(carForward.x, carForward.z);

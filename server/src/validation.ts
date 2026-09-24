@@ -5,6 +5,7 @@ import {
   isSeason,
   isTrackId,
   isWeather,
+  sanitizeLook,
   sanitizeTune,
   sanitizeUpgrades,
   type CarId,
@@ -58,10 +59,15 @@ export function parseCar(raw: unknown): CarId {
   return isCarId(raw) ? raw : DEFAULT_CAR;
 }
 
-/** Mashina, upgrade'lar, sozlash — hammasi tozalanadi (eski klientlarda yo'q maydonlar — standart qiymat) */
+/** Mashina, upgrade'lar, sozlash, ko'rinish — hammasi tozalanadi (eski klientlarda yo'q maydonlar — standart qiymat) */
 export function parseLoadout(raw: unknown): Loadout {
   const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  return { car: parseCar(src.car), upgrades: sanitizeUpgrades(src.upgrades), tune: sanitizeTune(src.tune) };
+  return {
+    car: parseCar(src.car),
+    upgrades: sanitizeUpgrades(src.upgrades),
+    tune: sanitizeTune(src.tune),
+    look: sanitizeLook(src.look),
+  };
 }
 
 /** Faqat to'g'ri maydonlar `base` ustidan yoziladi — noma'lum qiymatlar e'tiborsiz qoldiriladi */

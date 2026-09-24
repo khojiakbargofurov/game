@@ -71,10 +71,10 @@ function onRoomJoined(res: AckResult<RoomInfo>, name: string) {
   useNetStore.setState({ room: res.data, screen: 'room', mode: 'online', error: null, results: null });
 }
 
-/** Xonaga olib boriladigan mashina: tanlov, upgrade'lar, sozlash (server tekshiradi) */
+/** Xonaga olib boriladigan mashina: tanlov, upgrade'lar, sozlash, ko'rinish (server tekshiradi) */
 function loadout(): LoadoutPayload {
-  const { levels, tune } = useGarage.getState();
-  return { car: useCarChoice.getState().car, upgrades: levels, tune };
+  const { levels, tune, look } = useGarage.getState();
+  return { car: useCarChoice.getState().car, upgrades: levels, tune, look };
 }
 
 export function createRoom(name: string) {

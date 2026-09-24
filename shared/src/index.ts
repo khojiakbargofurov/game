@@ -6,3 +6,4 @@ export * from './route';
 export * from './tracks';
 export * from './environment';
 export * from './upgrades';
+export * from './cosmetics';

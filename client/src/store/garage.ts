@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import {
   MAX_UPGRADE_LEVEL,
+  NO_LOOK,
+  cosmeticKey,
+  findCosmetic,
+  sanitizeLook,
+  type CarLook,
+  type CosmeticCategory,
   NO_TUNE,
   NO_UPGRADES,
   UPGRADE_COSTS,
@@ -23,21 +29,31 @@ interface Saved {
   wallet: number;
   levels: UpgradeLevels;
   tune: TuneSetup;
+  /** Sotib olingan vizual buyumlar: "kategoriya:id" */
+  owned: string[];
+  look: CarLook;
 }
 
 function load(): Saved {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>;
     const wallet = typeof raw.wallet === 'number' && Number.isFinite(raw.wallet) ? Math.max(0, Math.floor(raw.wallet)) : 0;
-    return { wallet, levels: sanitizeUpgrades(raw.levels), tune: sanitizeTune(raw.tune) };
+    const owned = Array.isArray(raw.owned) ? raw.owned.filter((k): k is string => typeof k === 'string') : [];
+    // Faqat sotib olingan buyumlar kiyilgan bo'lishi mumkin
+    const look = sanitizeLook(raw.look);
+    for (const cat of Object.keys(look) as CosmeticCategory[]) {
+      const id = look[cat];
+      if (id && !owned.includes(cosmeticKey(cat, id))) look[cat] = null;
+    }
+    return { wallet, levels: sanitizeUpgrades(raw.levels), tune: sanitizeTune(raw.tune), owned, look };
   } catch {
-    return { wallet: 0, levels: { ...NO_UPGRADES }, tune: { ...NO_TUNE } };
+    return { wallet: 0, levels: { ...NO_UPGRADES }, tune: { ...NO_TUNE }, owned: [], look: { ...NO_LOOK } };
   }
 }
 
-function save({ wallet, levels, tune }: Saved) {
+function save({ wallet, levels, tune, owned, look }: Saved) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ wallet, levels, tune }));
+    localStorage.setItem(KEY, JSON.stringify({ wallet, levels, tune, owned, look }));
   } catch {
     // xotira yopiq bo'lsa ham shu seansda ishlaydi
   }
@@ -53,6 +69,10 @@ interface GarageState extends Saved {
   buy: (id: UpgradeId) => boolean;
   /** Sozlash slayderi (bepul) */
   setTune: (id: TuneId, value: number) => void;
+  /** Vizual buyum: sotib olinmagan bo'lsa sotib oladi (tanga yetmasa — false), keyin kiyadi */
+  buyOrEquip: (cat: CosmeticCategory, id: string) => boolean;
+  /** Kategoriyani zavod holatiga qaytarish */
+  unequip: (cat: CosmeticCategory) => void;
 }
 
 /** Garaj: tanga hamyoni va upgrade darajalari (brauzerda saqlanadi) */
@@ -73,6 +93,23 @@ export const useGarage = create<GarageState>((set, get) => ({
   },
   setTune: (id, value) => {
     set((s) => ({ tune: sanitizeTune({ ...s.tune, [id]: value }) }));
+    save(get());
+  },
+  buyOrEquip: (cat, id) => {
+    const item = findCosmetic(cat, id);
+    if (!item) return false;
+    const { wallet, owned, look } = get();
+    const key = cosmeticKey(cat, id);
+    if (!owned.includes(key)) {
+      if (wallet < item.cost) return false;
+      set({ wallet: wallet - item.cost, owned: [...owned, key] });
+    }
+    set({ look: { ...look, [cat]: id } });
+    save(get());
+    return true;
+  },
+  unequip: (cat) => {
+    set((s) => ({ look: { ...s.look, [cat]: null } }));
     save(get());
   },
 }));

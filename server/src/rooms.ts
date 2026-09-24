@@ -4,6 +4,7 @@ import {
   ROOM,
   getTrack,
   type CarId,
+  type CarLook,
   type NetState,
   type PlayerInfo,
   type PlayerState,
@@ -21,6 +22,7 @@ export interface Loadout {
   /** Klient e'lon qilgan upgrade darajalari (0..MAX gacha cheklangan) */
   upgrades: UpgradeLevels;
   tune: TuneSetup;
+  look: CarLook;
 }
 
 export interface ServerPlayer extends Loadout {
@@ -208,6 +210,7 @@ export function roomInfo(room: Room): RoomInfo {
       car: p.car,
       upgrades: effectiveUpgrades(room, p),
       tune: effectiveTune(room, p),
+      look: p.look,
       slot: p.slot,
       color: ROOM.PLAYER_COLORS[p.slot % ROOM.PLAYER_COLORS.length],
       isHost: p.id === room.hostId,

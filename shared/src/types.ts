@@ -1,4 +1,5 @@
 import type { CarId } from './config';
+import type { CarLook } from './cosmetics';
 import type { Season, Weather } from './environment';
 import type { TrackId } from './tracks';
 import type { TuneSetup, UpgradeLevels } from './upgrades';
@@ -33,6 +34,8 @@ export interface PlayerInfo {
   upgrades: UpgradeLevels;
   /** Sozlash slayderlari (upgrade'lar o'chirilgan xonada — zavod sozlamasi) */
   tune: TuneSetup;
+  /** Vizual tuning (bo'yoq, disk, spoyler, neon) */
+  look: CarLook;
   isHost: boolean;
   /** Start panjarasidagi joy (0..MAX_PLAYERS-1) */
   slot: number;

@@ -9,6 +9,8 @@ import { CAR, CARS, type CarId } from '@game/shared';
  * Yuklangandan keyin bo'laklar birlashtiriladi (kam draw call):
  *  - body:  butun korpus — material ranglari vertex rangga o'tkaziladi (1 draw call)
  *  - wheel: bitta g'ildirak (shina + disk), markazi koordinata boshida, o'qi X bo'ylab, disk +X tomonda
+ * Vizual tuning uchun ular yana ikkiga bo'lingan: korpus = bodyRest + paint (bo'yoq), g'ildirak = tire + rim (disk).
+ * Tuning yo'q bo'lsa birlashgan variant chiziladi (kam draw call).
  * Model fizikaga moslanadi: g'ildiraklar orasi (old-orqa) = CAR.WHEEL_POSITIONS, g'ildirak radiusi = CAR.WHEEL_RADIUS.
  * Fizika (collider, g'ildirak ulanish nuqtalari) o'zgarmaydi — bu faqat vizual.
  */
@@ -21,6 +23,14 @@ export const WHEEL_REST_Y = CAR.WHEEL_POSITIONS[0][1] - CAR.SUSPENSION_REST_LENG
 export interface CarModel {
   body: BufferGeometry;
   wheel: BufferGeometry;
+  /** Korpusning bo'yoq qismi va qolgani (shina, oyna) */
+  paint: BufferGeometry;
+  bodyRest: BufferGeometry;
+  /** G'ildirakning shina va disk qismlari */
+  tire: BufferGeometry;
+  rim: BufferGeometry;
+  /** Korpus chegaralari (mashina lokal koordinatalarida) — spoyler va neon joylashuvi uchun */
+  bounds: Box3;
   /** Vizual g'ildiraklarning X masofasi (model proporsiyasi bo'yicha; fizika nuqtalaridan torroq) */
   wheelX: number;
 }
@@ -30,6 +40,10 @@ function partName(o: Object3D) {
   for (let p: Object3D | null = o; p; p = p.parent) if (/^(body|wheel[A-Za-z]+)$/.test(p.name)) return p.name;
   return '';
 }
+
+/** Bo'yalmaydigan materiallar (qolgani — korpus bo'yog'i yoki g'ildirak diski) */
+const FIXED_MATERIALS = ['carTire', 'glass'];
+const isFixed = (m: Mesh) => FIXED_MATERIALS.includes((m.material as MeshStandardMaterial).name);
 
 /** Dunyo koordinatalariga o'tkazilgan, indekssiz, material rangidagi vertex rangli nusxa */
 function bake(mesh: Mesh, extra: Matrix4) {
@@ -83,18 +97,29 @@ function buildCarModel(scene: Object3D): CarModel {
     .makeScale(wheelScale, wheelScale, wheelScale)
     .multiply(new Matrix4().makeTranslation(-fl.center.x, -fl.center.y, -fl.center.z));
 
-  const body: BufferGeometry[] = [];
-  const wheel: BufferGeometry[] = [];
+  const paint: BufferGeometry[] = [];
+  const bodyRest: BufferGeometry[] = [];
+  const rim: BufferGeometry[] = [];
+  const tire: BufferGeometry[] = [];
   for (const m of meshes) {
     const part = partName(m);
-    if (part === 'body') body.push(bake(m, bodyFit));
-    else if (part === 'wheelFrontLeft') wheel.push(bake(m, wheelFit));
+    if (part === 'body') (isFixed(m) ? bodyRest : paint).push(bake(m, bodyFit));
+    else if (part === 'wheelFrontLeft') (isFixed(m) ? tire : rim).push(bake(m, wheelFit));
   }
-  if (!body.length || !wheel.length) throw new Error('Mashina modeli kutilgan tuzilmada emas');
+  if (!paint.length || !bodyRest.length || !rim.length || !tire.length) {
+    throw new Error('Mashina modeli kutilgan tuzilmada emas');
+  }
+  const body = merge([...bodyRest, ...paint]);
+  body.computeBoundingBox();
 
   return {
-    body: merge(body),
-    wheel: merge(wheel),
+    body,
+    wheel: merge([...tire, ...rim]),
+    paint: merge(paint),
+    bodyRest: merge(bodyRest),
+    tire: merge(tire),
+    rim: merge(rim),
+    bounds: body.boundingBox!.clone(),
     wheelX: (Math.abs(fl.center.x - fr.center.x) / 2) * scale,
   };
 }

@@ -13,7 +13,7 @@ import { Wheel } from './Wheel';
 import { useCarModel } from './carGeometry';
 import { useCarChoice } from '../../store/carChoice';
 import { activeTrack } from '../../store/raceSettings';
-import { ownCarStats } from '../../store/garage';
+import { ownCarStats, useGarage } from '../../store/garage';
 import { computeDrive } from './driveLogic';
 import { useVehicleController } from './useVehicleController';
 import { WHEEL_COUNT, applyDriveCommand } from './vehicleSetup';
@@ -94,10 +94,10 @@ function uprightness(rb: RapierRigidBody) {
 export function Car() {
   // Onlayn rejimda server tasdiqlagan mashina, yakkada — menyudagi tanlov
   const chosen = useCarChoice((s) => s.car);
-  const car = useNetStore((s) => {
-    const me = s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined;
-    return me ? me.car : chosen;
-  });
+  const garageLook = useGarage((s) => s.look);
+  const me = useNetStore((s) => (s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined));
+  const car = me ? me.car : chosen;
+  const look = me ? me.look : garageLook;
   const { wheelX } = useCarModel(car);
   const body = useRef<RapierRigidBody>(null);
   const anchor = useRef<Group>(null);
@@ -225,9 +225,9 @@ export function Car() {
     >
       <CuboidCollider args={[HX, HY, HZ]} massProperties={MASS_PROPS} friction={0.3} />
       <group ref={anchor} />
-      <CarBody car={car} />
+      <CarBody car={car} look={look} />
       {CAR.WHEEL_POSITIONS.map(([x], i) => (
-        <Wheel key={i} car={car} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
+        <Wheel key={i} car={car} rim={look.rim} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
       ))}
     </RigidBody>
   );

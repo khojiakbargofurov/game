@@ -1,14 +1,36 @@
 import { useState } from 'react';
-import { MAX_UPGRADE_LEVEL, TUNES, UPGRADES } from '@game/shared';
+import {
+  CARS,
+  COSMETICS,
+  COSMETIC_CATEGORIES,
+  MAX_UPGRADE_LEVEL,
+  TUNES,
+  UPGRADES,
+  cosmeticKey,
+  type CosmeticCategory,
+  type CosmeticItem,
+} from '@game/shared';
 import { nextCost, useGarage } from '../store/garage';
+import { useCarChoice } from '../store/carChoice';
+import { CarIcon } from './CarIcon';
 
 const ICON = { engine: '⚙️', grip: '🛞', boost: '⚡', steering: '🎯', brakes: '🛑', weight: '🪶', nitro: '🔥' } as const;
 
-type Tab = 'parts' | 'tune';
+type Tab = 'parts' | 'tune' | 'look';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'parts', label: 'Qismlar' },
   { id: 'tune', label: 'Sozlash' },
+  { id: 'look', label: "Ko'rinish" },
 ];
+
+const CATEGORY_LABEL: Record<CosmeticCategory, string> = {
+  paint: "Bo'yoq",
+  rim: 'Disklar',
+  spoiler: 'Spoyler',
+  neon: 'Neon',
+};
+/** "Zavod" tugmasi yorlig'i: bo'yoq/disk — asl rang, spoyler/neon — yo'q */
+const NONE_LABEL: Record<CosmeticCategory, string> = { paint: 'Zavod', rim: 'Zavod', spoiler: "Yo'q", neon: "Yo'q" };
 
 /** Qismlar: tangalar evaziga upgrade'lar */
 function Parts() {
@@ -71,7 +93,61 @@ function Tune() {
   );
 }
 
-/** Garaj: poygalarda yig'ilgan tangalar evaziga qismlar va sozlash (brauzerda saqlanadi) */
+/** Ko'rinish: bo'yoq, disk, spoyler, neon — bir marta sotib olinadi, keyin istalgancha kiyiladi */
+function Look() {
+  const wallet = useGarage((s) => s.wallet);
+  const owned = useGarage((s) => s.owned);
+  const look = useGarage((s) => s.look);
+  const buyOrEquip = useGarage((s) => s.buyOrEquip);
+  const unequip = useGarage((s) => s.unequip);
+  const car = useCarChoice((s) => s.car);
+  const baseColor = CARS.find((c) => c.id === car)!.color;
+
+  return (
+    <div className="looks">
+      <div className="look-preview">
+        <CarIcon color={baseColor} look={look} />
+      </div>
+      {COSMETIC_CATEGORIES.map((cat) => (
+        <section key={cat} className="look-cat">
+          <strong>{CATEGORY_LABEL[cat]}</strong>
+          <div className="swatches" role="radiogroup" aria-label={CATEGORY_LABEL[cat]}>
+            <button
+              role="radio"
+              aria-checked={look[cat] === null}
+              className={look[cat] === null ? 'active' : undefined}
+              onClick={() => unequip(cat)}
+            >
+              <i className="swatch none" />
+              <span>{NONE_LABEL[cat]}</span>
+            </button>
+            {(COSMETICS[cat] as readonly CosmeticItem[]).map((item) => {
+              const has = owned.includes(cosmeticKey(cat, item.id));
+              const on = look[cat] === item.id;
+              return (
+                <button
+                  key={item.id}
+                  role="radio"
+                  aria-checked={on}
+                  className={on ? 'active' : undefined}
+                  disabled={!has && wallet < item.cost}
+                  onClick={() => buyOrEquip(cat, item.id)}
+                  title={has ? item.label : `${item.label} — 🪙 ${item.cost}`}
+                >
+                  <i className={`swatch${item.metallic ? ' metal' : ''}`} style={{ background: item.color }} />
+                  <span>{has ? item.label : `🪙 ${item.cost}`}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+      <p className="note">Bosing — sotib olinadi va darhol kiyiladi. Onlayn'da boshqa o'yinchilar ham ko'radi.</p>
+    </div>
+  );
+}
+
+/** Garaj: poygalarda yig'ilgan tangalar evaziga qismlar, sozlash va ko'rinish (brauzerda saqlanadi) */
 export function Garage({ onClose }: { onClose: () => void }) {
   const wallet = useGarage((s) => s.wallet);
   const [tab, setTab] = useState<Tab>('parts');
@@ -98,6 +174,7 @@ export function Garage({ onClose }: { onClose: () => void }) {
         </div>
         {tab === 'parts' && <Parts />}
         {tab === 'tune' && <Tune />}
+        {tab === 'look' && <Look />}
         <p className="note">
           Tangalar poyga tugagach qo'shiladi. Onlayn'da upgrade va sozlashni xona egasi o'chirib qo'yishi mumkin.
         </p>

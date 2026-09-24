@@ -1,4 +1,5 @@
 import type { CarId } from './config';
+import type { CarLook } from './cosmetics';
 import type { NetState, PlayerState, RaceResult, RaceSettings, RoomInfo } from './types';
 import type { TuneSetup, UpgradeLevels } from './upgrades';
 
@@ -7,6 +8,7 @@ export interface LoadoutPayload {
   car?: CarId;
   upgrades?: UpgradeLevels;
   tune?: TuneSetup;
+  look?: CarLook;
 }
 
 /**
