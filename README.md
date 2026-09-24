@@ -1,6 +1,6 @@
 # Adventure Racer
 
-Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 3 trassa, 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari.
+Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 4 trassa (shu jumladan F1 uslubidagi 3 aylanali halqa), 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari.
 
 **Texnologiyalar:** Vite + React + TypeScript · three.js / @react-three/fiber / drei · @react-three/rapier · zustand · Node.js + Socket.io
 
@@ -160,6 +160,11 @@ Har bir trassa — faqat ma'lumot (`shared/src/tracks/*.ts`, `TrackDef`): nazora
 | **Sarguzasht** (`adventure`) | ~1300 m | o'rmon → ko'prik → kanyon (tunnel, toshlar) → xarobalar (arkalar, tor yo'lak) |
 | **Tog' dovoni** (`mountain`) | ~1400 m | o'rmonli serpantin bilan ko'tarilish → qoyali dara, tunnel, dumalaydigan toshlar |
 | **Ko'l bo'yi** (`lake`) | ~1420 m | daryo ustidan ko'prik → ko'lni aylanib o'tuvchi o'rmon yo'li → xarobalar |
+| **Gran Pri** (`circuit`) | ~1700 m × 3 aylana | F1 halqasi: uzun start to'g'ri yo'li, shpilkalar, "S" burilishlar, shikana; asfalt, kerblar, tribunalar |
+
+**Aylanali poyga** (`laps` va `startLine` — `TrackDef`da): marshrut yopiq halqa bo'ladi, checkpointlar har aylana uchun
+takrorlanadi (`totalS` — poyga boshidan umumiy masofa), har aylana start/marra chizig'idan o'tish bilan tugaydi,
+oxirgi aylanada — marra. HUD'da "Aylana 2/3", start panjarasi chiziq ortida (F1 kabi).
 
 Yangi trassa qo'shish: `shared/src/tracks/` ga `TrackDef` yozib, `TRACK_DEFS` va `TrackId` ga qo'shish;
 so'ng `npm run sim:route -w client -- <id>` bilan oxirigacha haydalishini tekshirish.

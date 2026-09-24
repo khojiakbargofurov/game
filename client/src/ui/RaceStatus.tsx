@@ -20,7 +20,10 @@ function useRaceTime() {
 
 /** HUD chap-tepa paneli: o'rin (onlayn), vaqt, tangalar (checkpointlar — yo'nalish ko'rsatkichida) */
 export function RaceStatus() {
-  const { COINS } = useTrack();
+  const { COINS, CHECKPOINTS, LAPS } = useTrack();
+  const next = useGameStore((s) => s.nextCheckpoint);
+  // Joriy aylana: navbatdagi checkpoint qaysi aylanaga tegishli (marradan keyin — oxirgisi)
+  const lap = Math.min(LAPS, (CHECKPOINTS[next]?.lap ?? LAPS - 1) + 1);
   const time = useRaceTime();
   const coins = useGameStore((s) => s.coins);
   const online = useNetStore((s) => s.mode === 'online');
@@ -36,6 +39,11 @@ export function RaceStatus() {
         </div>
       )}
       <div className="stat-time">{formatTime(time)}</div>
+      {LAPS > 1 && (
+        <div className="stat-lap">
+          Aylana {lap}/{LAPS}
+        </div>
+      )}
       <div>
         🪙 {coins}/{COINS.length}
       </div>

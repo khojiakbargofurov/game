@@ -17,6 +17,7 @@ import { Tunnel } from './track/Tunnel';
 import { Ramps } from './track/Ramps';
 import { Obstacles } from './track/Obstacles';
 import { Ruins } from './track/Ruins';
+import { Grandstands } from './track/Grandstands';
 import { Boulders } from './track/Boulders';
 import { Checkpoints } from './track/Checkpoints';
 import { Coins } from './track/Coins';
@@ -88,6 +89,7 @@ export default function Scene() {
           <Ramps />
           <Obstacles />
           <Ruins />
+          <Grandstands />
           <Boulders />
           <Car />
           <RemoteCars />

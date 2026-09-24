@@ -40,7 +40,7 @@ const toMap = (x: number, z: number): [number, number] => [
   bounds.offY + (bounds.maxX - x) * bounds.scale,
 ];
 
-const ZONE_COLOR = { forest: '#7fae4f', canyon: COLORS.canyonA, ruins: '#d9c08a' } as const;
+const ZONE_COLOR = { forest: '#7fae4f', canyon: COLORS.canyonA, ruins: '#d9c08a', circuit: '#cfd2d8' } as const;
 
 /** Statik fon: marshrut (zona ranglarida), ko'prik, tunnel, checkpointlar, marra */
 function drawBackground(ctx: CanvasRenderingContext2D, { ROUTE, BRIDGE, TUNNEL, LAKE, CHECKPOINTS, zoneAt }: Track) {

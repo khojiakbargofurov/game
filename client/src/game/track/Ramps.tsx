@@ -33,7 +33,7 @@ function wedgeGeometry(verts: Float32Array) {
   return geo;
 }
 
-const ZONE_COLOR = { forest: COLORS.wood, canyon: COLORS.canyonC, ruins: COLORS.ruins } as const;
+const ZONE_COLOR = { forest: COLORS.wood, canyon: COLORS.canyonC, ruins: COLORS.ruins, circuit: COLORS.ruins } as const;
 
 /** Sakrash rampalari — yo'l yo'nalishi va qiyaligiga moslab joylashtiriladi */
 export function Ramps() {

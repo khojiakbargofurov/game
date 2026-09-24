@@ -713,7 +713,7 @@ body,
 
 .track-picker {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
 
@@ -838,4 +838,10 @@ body,
 
 .upgrade-toggle {
   margin-top: 4px;
+}
+
+.stat-lap {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffd166;
 }

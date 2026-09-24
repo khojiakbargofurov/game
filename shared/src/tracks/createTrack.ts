@@ -10,12 +10,17 @@ const smoothstep = (a: number, b: number, x: number) => {
 
 /** Zonalar orasidagi silliq o'tish uzunligi (m) */
 const ZONE_BLEND = 30;
-const HALF_WIDTH: Record<ZoneName, number> = { forest: 7, canyon: 5, ruins: 6 };
+const HALF_WIDTH: Record<ZoneName, number> = { forest: 7, canyon: 5, ruins: 6, circuit: 8 };
 
 /** Trassa ta'rifidan to'liq trassa: marshrut, zonalar, relyef, checkpointlar, tangalar */
 export function createTrack(def: TrackDef): Track {
-  const ROUTE = buildRoute(def.control);
+  const loop = !!def.laps;
+  const ROUTE = buildRoute(def.control, loop);
   const ROUTE_LENGTH = ROUTE.length;
+  const LAPS = def.laps ?? 1;
+  const LINE_S = def.startLine ?? 20;
+  const totalS = (localS: number, ref: number) =>
+    loop ? localS + Math.round((ref - localS) / ROUTE_LENGTH) * ROUTE_LENGTH : localS;
   const { bridge: BRIDGE, tunnel: TUNNEL, narrow: NARROW, lake: LAKE } = def;
 
   const routeAt = (s: number, out?: RouteFrame) => routeFrameAt(ROUTE, s, out);
@@ -23,8 +28,8 @@ export function createTrack(def: TrackDef): Track {
 
   // ─── Zonalar ───
   /** Zonalar orasida silliq o'tish uchun og'irliklar (yig'indisi = 1) */
-  function zoneWeights(s: number, out: ZoneWeights = { forest: 0, canyon: 0, ruins: 0 }): ZoneWeights {
-    out.forest = out.canyon = out.ruins = 0;
+  function zoneWeights(s: number, out: ZoneWeights = { forest: 0, canyon: 0, ruins: 0, circuit: 0 }): ZoneWeights {
+    out.forest = out.canyon = out.ruins = out.circuit = 0;
     const b = ZONE_BLEND / 2;
     let enter = 1; // shu zonaga kirish koeffitsiyenti (oldingi chegaradan o'tganlik)
     for (let k = 0; k < def.zones.length; k++) {
@@ -42,12 +47,13 @@ export function createTrack(def: TrackDef): Track {
   }
 
   // ─── Yo'l kengligi va maxsus uchastkalar ───
-  const tmpW: ZoneWeights = { forest: 0, canyon: 0, ruins: 0 };
+  const tmpW: ZoneWeights = { forest: 0, canyon: 0, ruins: 0, circuit: 0 };
 
   /** Yo'lning yarim kengligi `s` nuqtada */
   function roadHalfWidth(s: number): number {
     const w = zoneWeights(s, tmpW);
-    let hw = w.forest * HALF_WIDTH.forest + w.canyon * HALF_WIDTH.canyon + w.ruins * HALF_WIDTH.ruins;
+    let hw =
+      w.forest * HALF_WIDTH.forest + w.canyon * HALF_WIDTH.canyon + w.ruins * HALF_WIDTH.ruins + w.circuit * HALF_WIDTH.circuit;
     // Ko'prik va tor yo'lakda yo'l torayadi (10 m davomida silliq)
     if (BRIDGE) {
       const k = smoothstep(BRIDGE.start - 12, BRIDGE.start - 2, s) * (1 - smoothstep(BRIDGE.end + 2, BRIDGE.end + 12, s));
@@ -91,7 +97,7 @@ export function createTrack(def: TrackDef): Track {
   function sampleTerrain(
     x: number,
     z: number,
-    out: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0 },
+    out: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 },
   ): TerrainSample {
     const n = nearestOnRoute(x, z, near);
     const hw = roadHalfWidth(n.s);
@@ -116,6 +122,11 @@ export function createTrack(def: TrackDef): Track {
       const far = smoothstep(hw + 4, hw + 40, d);
       h += w.ruins * ((hills - 0.5) * 6 + (detail - 0.5)) * far;
     }
+    if (w.circuit > 0) {
+      // Keng tekis xavfsizlik zonasi (run-off), uzoqda — past do'ngliklar
+      const far = smoothstep(hw + 30, hw + 90, d);
+      h += w.circuit * ((hills - 0.4) * 8 + (detail - 0.5)) * far;
+    }
     if (BRIDGE) h -= BRIDGE.gorgeDepth * gorgeFactor(n.s);
     if (LAKE) {
       // Qirg'oq yo'ldan kamida 6 m uzoqda boshlanadi — yo'l o'zi hech qachon botmaydi
@@ -132,30 +143,35 @@ export function createTrack(def: TrackDef): Track {
     return out;
   }
 
-  const tmp: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0 };
+  const tmp: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
   const terrainHeight = (x: number, z: number) => sampleTerrain(x, z, tmp).height;
 
   // ─── Start, checkpointlar, tangalar, boostlar ───
-  const START = trackPoint(8, 0, 1.2);
+  // Halqada: yakka start — chiziqdan 12 m orqada, panjara — chiziq ortida 2 qator × 4 (F1 kabi)
+  const START = loop ? trackPoint(LINE_S - 12, 0, 1.2) : trackPoint(8, 0, 1.2);
 
   function gridSpawn(slot: number) {
     const row = Math.floor(slot / 2);
     const lateral = slot % 2 === 0 ? 2.2 : -2.2;
-    return trackPoint(26 - row * 6, lateral, 1.2);
+    return loop ? trackPoint(LINE_S - 8 - row * 7, lateral, 1.2) : trackPoint(26 - row * 6, lateral, 1.2);
   }
 
-  const checkpointS = [...def.checkpoints, ROUTE_LENGTH - 10];
-  const CHECKPOINTS: Checkpoint[] = checkpointS.map((s, index) => {
+  const checkpoint = (s: number, total: number, lap: number, isLapLine: boolean, isFinish: boolean): Checkpoint => {
     const p = trackPoint(s, 0, 0);
-    return {
-      index,
-      s,
-      position: p.position,
-      yaw: p.yaw,
-      radius: roadHalfWidth(s) + 3,
-      isFinish: index === checkpointS.length - 1,
-    };
-  });
+    return { index: 0, s, totalS: total, lap, isLapLine, position: p.position, yaw: p.yaw, radius: roadHalfWidth(s) + 3, isFinish };
+  };
+  const CHECKPOINTS: Checkpoint[] = [];
+  if (loop) {
+    // Har aylana: oraliq checkpointlar, so'ng start/marra chizig'i (oxirgi aylanada — marra)
+    for (let lap = 0; lap < LAPS; lap++) {
+      for (const s of def.checkpoints) CHECKPOINTS.push(checkpoint(s, lap * ROUTE_LENGTH + s, lap, false, false));
+      CHECKPOINTS.push(checkpoint(LINE_S, (lap + 1) * ROUTE_LENGTH + LINE_S, lap, true, lap === LAPS - 1));
+    }
+  } else {
+    for (const s of def.checkpoints) CHECKPOINTS.push(checkpoint(s, s, 0, false, false));
+    CHECKPOINTS.push(checkpoint(ROUTE_LENGTH - 10, ROUTE_LENGTH - 10, 0, true, true));
+  }
+  CHECKPOINTS.forEach((cp, i) => (cp.index = i));
 
   /** Tangalar: har 45 m da 4 talik guruh, turli naqshlarda (markaz / chap / o'ng / zigzag) */
   const COINS: Pickup[] = [];
@@ -177,6 +193,9 @@ export function createTrack(def: TrackDef): Track {
     def,
     ROUTE,
     ROUTE_LENGTH,
+    LAPS,
+    LINE_S,
+    totalS,
     routeAt,
     nearestOnRoute,
     zoneWeights,
@@ -199,6 +218,7 @@ export function createTrack(def: TrackDef): Track {
     FALLEN_PILLARS: def.fallenPillars,
     ARCHES: def.arches,
     BOULDER_SPAWNERS: def.boulderSpawners,
+    GRANDSTANDS: def.grandstands ?? [],
     sampleTerrain,
     terrainHeight,
   };

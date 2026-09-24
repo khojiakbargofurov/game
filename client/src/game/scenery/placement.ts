@@ -29,7 +29,7 @@ export function generatePlacements(track: Track): Placement[] {
   const { BRIDGE, TUNNEL, LAKE, ROUTE_LENGTH, roadHalfWidth, sampleTerrain, trackPoint } = track;
   const rng = createRng(2024);
   const out: Placement[] = [];
-  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0 };
+  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
 
   for (let attempt = 0; attempt < 5200; attempt++) {
     const s = rng() * ROUTE_LENGTH;
@@ -52,6 +52,10 @@ export function generatePlacements(track: Track): Placement[] {
       // Kanyonda asosan qoyalar; daraxtlar faqat devor tepasida, siyrak
       const onTop = t.height - t.roadY > 12;
       kind = r < 0.55 ? 'redRock' : onTop && r < 0.7 ? 'broadleaf' : null;
+    } else if (t.circuit > 0.5) {
+      // F1 halqasi: keng xavfsizlik zonasi (run-off) bo'sh, daraxtlar faqat uzoqda va siyrak
+      if (clearance < 45) continue;
+      kind = r < 0.3 ? 'broadleaf' : r < 0.5 ? 'pine' : null;
     } else kind = r < 0.25 ? 'broadleaf' : r < 0.45 ? 'rock' : r < 0.52 ? 'pine' : null;
     if (!kind) continue;
 

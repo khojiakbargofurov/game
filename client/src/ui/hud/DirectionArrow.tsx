@@ -8,7 +8,7 @@ import { useAnimationFrame } from './useAnimationFrame';
 export function DirectionArrow() {
   const next = useGameStore((s) => s.nextCheckpoint);
   const phase = useGameStore((s) => s.phase);
-  const { CHECKPOINTS } = useTrack();
+  const { CHECKPOINTS, LAPS } = useTrack();
   const arrow = useRef<SVGSVGElement>(null);
   const dist = useRef<HTMLSpanElement>(null);
   const warn = useRef<HTMLDivElement>(null);
@@ -28,14 +28,18 @@ export function DirectionArrow() {
   });
 
   if (phase === 'finished' || next >= CHECKPOINTS.length) return null;
-  const isFinish = CHECKPOINTS[next]?.isFinish;
+  const cp = CHECKPOINTS[next];
+  const isFinish = cp?.isFinish;
+  // Aylana ichidagi checkpoint raqami (oraliq checkpointlar, chiziqsiz)
+  const perLap = CHECKPOINTS.length / LAPS;
+  const inLap = (next % perLap) + 1;
   return (
     <div className="guidance">
       <svg ref={arrow} className="guide-arrow" viewBox="-20 -20 40 40" aria-hidden>
         <path d="M0 -17 L13 9 L0 3 L-13 9 Z" />
       </svg>
       <div className="guide-label">
-        {isFinish ? '🏁 Marra' : `🚩 ${next + 1}/${CHECKPOINTS.length - 1}`} · <span ref={dist}>—</span>
+        {isFinish ? '🏁 Marra' : cp?.isLapLine ? '🏁 Aylana chizig\'i' : `🚩 ${inLap}/${perLap - 1}`} · <span ref={dist}>—</span>
       </div>
       <div ref={warn} className="guide-warn" hidden />
     </div>

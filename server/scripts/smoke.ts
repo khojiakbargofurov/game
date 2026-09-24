@@ -19,7 +19,7 @@ import {
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
 // Sozlamasiz yaratilgan xona — standart trassada
-const { CHECKPOINTS, ROUTE_LENGTH, gridSpawn, nearestOnRoute, routeAt } = getTrack(DEFAULT_TRACK);
+const { CHECKPOINTS, ROUTE_LENGTH, gridSpawn, nearestOnRoute } = getTrack(DEFAULT_TRACK);
 const URL = process.env.SERVER_URL ?? `http://localhost:${NET.DEFAULT_PORT}`;
 const clients: Client[] = [];
 let failures = 0;
@@ -47,8 +47,9 @@ const reset = (c: Client, startNow: boolean) =>
   new Promise<AckResult<null>>((r) => c.emit('room:reset', { start: startNow }, r));
 
 /** Marshrut bo'ylab haydash (20 Hz paketlar) va checkpointlarni xabar qilish */
-async function drive(c: Client, fromS: number, toS: number, speed: number, lateral = 0) {
-  let next = CHECKPOINTS.findIndex((cp) => cp.s > fromS);
+async function drive(c: Client, fromS: number, toS: number, speed: number, lateral = 0, track = getTrack(DEFAULT_TRACK)) {
+  const { CHECKPOINTS, routeAt } = track;
+  let next = CHECKPOINTS.findIndex((cp) => cp.totalS > fromS);
   const step = speed / NET.TICK_RATE;
   for (let s = fromS; s <= toS; s += step) {
     const f = routeAt(s);
@@ -59,7 +60,7 @@ async function drive(c: Client, fromS: number, toS: number, speed: number, later
       velocity: [f.tx * speed, 0, f.tz * speed],
     });
     await sleep(1000 / NET.TICK_RATE);
-    while (next >= 0 && next < CHECKPOINTS.length && CHECKPOINTS[next].s <= s) {
+    while (next >= 0 && next < CHECKPOINTS.length && CHECKPOINTS[next].totalS <= s) {
       c.emit('race:checkpoint', { index: next });
       next++;
     }
@@ -242,6 +243,28 @@ async function main() {
     );
     check(after.players.every((p) => Object.values(p.upgrades).every((v) => v === 0)), 'upgrade o`chirilganda hamma 0-darajada');
     check((await settings(h, { trackId: 'yoq-trassa' })).ok, "noma'lum trassa e'tiborsiz qoldiriladi");
+
+    // Aylanali poyga (Gran Pri, 3 aylana): server har aylana checkpointlarini ketma-ket qabul qiladi
+    const gp = getTrack('circuit');
+    await settings(h, { trackId: 'circuit', upgradesEnabled: false });
+    const acksH: { index: number; accepted: boolean; timeMs?: number }[] = [];
+    h.on('race:checkpointAck', (a) => acksH.push(a));
+    const resultsP = new Promise<RaceResult[]>((r) => h.once('race:results', ({ results }) => r(results)));
+    const go = new Promise((r) => h.once('race:go', r));
+    check((await start(h)).ok, 'Gran Pri poygasi boshlandi');
+    await go;
+    const startOf = (slot: number) => {
+      const sp = gp.gridSpawn(slot);
+      return gp.totalS(gp.nearestOnRoute(sp.position[0], sp.position[2]).s, gp.LINE_S);
+    };
+    const finishS = gp.CHECKPOINTS[gp.CHECKPOINTS.length - 1].totalS + 5;
+    await Promise.all([drive(h, startOf(0), finishS, 58, 2.2, gp), drive(g, startOf(1), finishS, 57, -2.2, gp)]);
+    const res = await resultsP;
+    check(
+      acksH.filter((a) => a.accepted).length === gp.CHECKPOINTS.length,
+      `Gran Pri: ${gp.LAPS} aylana, barcha ${gp.CHECKPOINTS.length} checkpoint qabul qilindi`,
+    );
+    check(res.length === 2 && res.every((r) => r.timeMs !== null), 'ikkala o`yinchi 3 aylanani tugatdi');
   }
 }
 

@@ -7,6 +7,7 @@ import { usePalette, useTrack } from '../store/raceSettings';
 /** Har bir uchi uchun rang tanlashda kerak bo'ladigan ma'lumotlar */
 interface VertexInfo {
   canyon: Float32Array;
+  circuit: Float32Array;
   ruins: Float32Array;
   above: Float32Array; // yo'ldan balandlik
   offRoad: Float32Array; // yo'l chetidan masofa (dist - halfWidth)
@@ -19,15 +20,17 @@ function buildHeightGeometry({ sampleTerrain }: Track) {
   const pos = geo.attributes.position as BufferAttribute;
   const info: VertexInfo = {
     canyon: new Float32Array(pos.count),
+    circuit: new Float32Array(pos.count),
     ruins: new Float32Array(pos.count),
     above: new Float32Array(pos.count),
     offRoad: new Float32Array(pos.count),
   };
-  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0 };
+  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
   for (let i = 0; i < pos.count; i++) {
     sampleTerrain(pos.getX(i), pos.getZ(i), t);
     pos.setY(i, t.height);
     info.canyon[i] = t.canyon;
+    info.circuit[i] = t.circuit;
     info.ruins[i] = t.ruins;
     info.above[i] = t.height - t.roadY;
     info.offRoad[i] = t.dist - t.halfWidth;
@@ -49,8 +52,20 @@ function colorsOf(palette: Palette): Colors {
 }
 
 /** Uchburchak rangi: zona, balandlik, qiyalik va yo'lga yaqinlikka qarab (low-poly uslubi) */
-function faceColor(C: Colors, canyon: number, ruins: number, above: number, offRoad: number, slope: number, out: Color) {
+function faceColor(
+  C: Colors,
+  canyon: number,
+  ruins: number,
+  circuit: number,
+  above: number,
+  offRoad: number,
+  slope: number,
+  out: Color,
+) {
   if (above < -9) return out.copy(slope > 0.5 ? C.rock : C.riverbed); // jarlik tubi
+  // F1 halqasida asfaltni yo'l geometriyasi chizadi (aniq chetlar) — relyef ostida maysa qoladi,
+  // aks holda 4 m to'rning uchburchaklari asfalt chetidan "arra tishi" bo'lib chiqib turardi
+  if (circuit > 0.5) return out.copy(above > 4 ? C.grassDark : C.grass);
   if (offRoad < 0.5 && Math.abs(above) < 0.5) {
     return out.copy(canyon > 0.5 ? C.roadCanyon : ruins > 0.5 ? C.roadRuins : C.roadForest);
   }
@@ -106,7 +121,7 @@ function buildVisualChunks(base: PlaneGeometry, info: VertexInfo, C: Colors): Bu
     const n = ab.subVectors(b, a).cross(ac.subVectors(c, a)).normalize();
     const slope = 1 - Math.abs(n.y);
     const avg = (arr: Float32Array) => (arr[i0] + arr[i1] + arr[i2]) / 3;
-    faceColor(C, avg(info.canyon), avg(info.ruins), avg(info.above), avg(info.offRoad), slope, col);
+    faceColor(C, avg(info.canyon), avg(info.ruins), avg(info.circuit), avg(info.above), avg(info.offRoad), slope, col);
     const jitter = 0.94 + ((f * 7919) % 13) / 100; // bir xil ko'rinmasligi uchun
     const k = chunkOf((a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3);
     positions[k].push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);

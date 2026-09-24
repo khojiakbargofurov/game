@@ -105,15 +105,19 @@ function StartLine() {
 
 export function Checkpoints() {
   const next = useGameStore((s) => s.nextCheckpoint);
-  const { CHECKPOINTS } = useTrack();
+  const { CHECKPOINTS, LAPS } = useTrack();
+  // Aylanali poygada darvozalar har aylanada bir xil joyda — faqat birinchi aylananikilar chiziladi,
+  // holati joriy aylana bo'yicha; start/marra chizig'i — bitta shaxmat darvoza
+  const perLap = CHECKPOINTS.length / LAPS;
+  const current = next % perLap;
   return (
     <>
-      <StartLine />
-      {CHECKPOINTS.map((cp) =>
-        cp.isFinish ? (
+      {LAPS === 1 && <StartLine />}
+      {CHECKPOINTS.filter((cp) => cp.lap === 0).map((cp, i) =>
+        cp.isLapLine ? (
           <FinishGate key={cp.index} cp={cp} />
         ) : (
-          <Gate key={cp.index} cp={cp} state={cp.index === next ? 'next' : cp.index < next ? 'passed' : 'future'} />
+          <Gate key={cp.index} cp={cp} state={i === current ? 'next' : i < current ? 'passed' : 'future'} />
         ),
       )}
     </>

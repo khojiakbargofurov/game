@@ -180,6 +180,12 @@ export const COLORS = {
   roadCanyon: '#b98659',
   roadRuins: '#bcab8a',
   roadEdge: '#7d5c3a',
+  // F1 halqasi
+  roadCircuit: '#56565e',
+  kerbRed: '#d7302a',
+  kerbWhite: '#f4f4f4',
+  grandstand: '#9aa3b2',
+  grandstandRoof: '#2f3142',
   wood: '#8a5a34',
   woodDark: '#5e3c22',
   crystal: '#5ff2ff',

@@ -17,6 +17,8 @@ export interface Route {
   tzs: Float32Array;
   /** Marshrut uzunligi (m) */
   length: number;
+  /** Yopiq halqa (aylanali poyga): oxirgi namuna birinchisi bilan bir xil, `s` halqa bo'ylab o'raladi */
+  closed: boolean;
 }
 
 /** Namunalar orasidagi masofa (m) */
@@ -28,21 +30,22 @@ function catmullRom(p0: number, p1: number, p2: number, p3: number, t: number) {
   return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
 }
 
-export function buildRoute(control: readonly ControlPoint[]): Route {
-  // 1) Spline'ni zich namunalash
+export function buildRoute(control: readonly ControlPoint[], closed = false): Route {
+  // 1) Spline'ni zich namunalash (yopiq halqada oxirgi nuqta birinchisiga ulanadi)
   const dense: [number, number, number][] = [];
   const n = control.length;
-  for (let i = 0; i < n - 1; i++) {
-    const p0 = control[Math.max(0, i - 1)];
-    const p1 = control[i];
-    const p2 = control[i + 1];
-    const p3 = control[Math.min(n - 1, i + 2)];
+  const at = (i: number) => (closed ? control[(i + n) % n] : control[Math.min(n - 1, Math.max(0, i))]);
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
     for (let k = 0; k < 40; k++) {
       const t = k / 40;
       dense.push([0, 1, 2].map((a) => catmullRom(p0[a], p1[a], p2[a], p3[a], t)) as [number, number, number]);
     }
   }
-  dense.push(control[n - 1]);
+  dense.push(closed ? control[0] : control[n - 1]);
 
   // 2) Yoy uzunligi bo'yicha teng qadamli qayta namunalash
   const xs: number[] = [dense[0][0]];
@@ -64,13 +67,27 @@ export function buildRoute(control: readonly ControlPoint[]): Route {
     carry = seg - (pos - ROUTE_STEP);
   }
 
-  // 3) Gorizontal tangentlar
+  // Yopiq halqa: oxirgi namuna aynan birinchisi bo'lsin (chok joyida uzilish bo'lmasin)
+  if (closed) {
+    const gap = Math.hypot(xs[xs.length - 1] - xs[0], zs[zs.length - 1] - zs[0]);
+    if (gap > ROUTE_STEP * 0.5) {
+      xs.push(xs[0]);
+      ys.push(ys[0]);
+      zs.push(zs[0]);
+    } else {
+      xs[xs.length - 1] = xs[0];
+      ys[ys.length - 1] = ys[0];
+      zs[zs.length - 1] = zs[0];
+    }
+  }
+
+  // 3) Gorizontal tangentlar (halqada chok orqali o'raladi)
   const count = xs.length;
   const txs = new Float32Array(count);
   const tzs = new Float32Array(count);
   for (let i = 0; i < count; i++) {
-    const a = Math.max(0, i - 1);
-    const b = Math.min(count - 1, i + 1);
+    const a = closed ? (i === 0 ? count - 2 : i - 1) : Math.max(0, i - 1);
+    const b = closed ? (i === count - 1 ? 1 : i + 1) : Math.min(count - 1, i + 1);
     const dx = xs[b] - xs[a];
     const dz = zs[b] - zs[a];
     const len = Math.hypot(dx, dz) || 1;
@@ -85,6 +102,7 @@ export function buildRoute(control: readonly ControlPoint[]): Route {
     txs,
     tzs,
     length: (count - 1) * ROUTE_STEP,
+    closed,
   };
 }
 
@@ -105,11 +123,14 @@ export function routeFrameAt(
   s: number,
   out: RouteFrame = { s: 0, x: 0, y: 0, z: 0, tx: 0, tz: 1 },
 ): RouteFrame {
-  const f = Math.min(Math.max(s, 0), ROUTE.length) / ROUTE_STEP;
+  // Halqada `s` o'raladi (manfiy yoki uzunlikdan katta bo'lishi mumkin — masalan, start panjarasi chiziq ortida)
+  const L = ROUTE.length;
+  const sc = ROUTE.closed ? ((s % L) + L) % L : Math.min(Math.max(s, 0), L);
+  const f = sc / ROUTE_STEP;
   const i = Math.min(Math.floor(f), ROUTE.count - 2);
   const t = f - i;
   const { xs, ys, zs, txs, tzs } = ROUTE;
-  out.s = Math.min(Math.max(s, 0), ROUTE.length);
+  out.s = sc;
   out.x = xs[i] + (xs[i + 1] - xs[i]) * t;
   out.y = ys[i] + (ys[i + 1] - ys[i]) * t;
   out.z = zs[i] + (zs[i + 1] - zs[i]) * t;

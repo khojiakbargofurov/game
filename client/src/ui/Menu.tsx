@@ -33,7 +33,7 @@ export function Menu() {
       <div className="panel menu wide">
         <header>
           <h1>🏜️ Adventure Racer</h1>
-          <p className="subtitle">3 trassa · 4 fasl · yomg'ir va qor</p>
+          <p className="subtitle">4 trassa · F1 halqasi · 4 fasl · yomg'ir va qor</p>
         </header>
         <div className="menu-col">
           <label className="field">

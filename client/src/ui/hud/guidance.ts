@@ -24,14 +24,16 @@ const LOOK_AHEAD = 35;
  * qaratiladi — aks holda strelka tog' yoki kanyon devori orqali ko'rsatardi.
  */
 export function computeGuidance(nextCheckpoint: number): Guidance | null {
-  const { CHECKPOINTS, nearestOnRoute, routeAt } = activeTrack();
+  const { CHECKPOINTS, nearestOnRoute, routeAt, totalS } = activeTrack();
   const cp = CHECKPOINTS[nextCheckpoint];
   if (!cp) return null;
   const { x, z } = carTarget.position;
   nearestOnRoute(x, z, near);
+  // Aylanali poygada — umumiy masofa (checkpointga nisbatan eng yaqin aylana)
+  const nearS = totalS(near.s, cp.totalS);
 
-  const missed = near.s > cp.s + 25;
-  const targetS = missed ? cp.s : Math.min(near.s + LOOK_AHEAD, cp.s);
+  const missed = nearS > cp.totalS + 25;
+  const targetS = missed ? cp.totalS : Math.min(nearS + LOOK_AHEAD, cp.totalS);
   routeAt(targetS, frame);
   const dx = frame.x - x;
   const dz = frame.z - z;
@@ -48,7 +50,7 @@ export function computeGuidance(nextCheckpoint: number): Guidance | null {
 
   return {
     angle: Math.atan2(rightness, forwardness),
-    distance: missed ? Math.hypot(cp.position[0] - x, cp.position[2] - z) : cp.s - near.s,
+    distance: missed ? Math.hypot(cp.position[0] - x, cp.position[2] - z) : cp.totalS - nearS,
     missed,
     wrongWay: !missed && alongRoute < -0.4 && Math.abs(carTarget.speed) > 4 && near.dist < 20,
   };

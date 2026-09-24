@@ -44,12 +44,13 @@ export function collectCoin(room: Room, player: ServerPlayer, id: number): boole
  */
 function progress(room: Room, p: ServerPlayer): number {
   if (p.finishTimeMs !== null) return Infinity;
-  const { CHECKPOINTS, nearestOnRoute } = trackOf(room);
-  const prevS = p.nextCheckpoint > 0 ? CHECKPOINTS[p.nextCheckpoint - 1].s : 0;
-  const nextS = CHECKPOINTS[p.nextCheckpoint]?.s ?? prevS;
+  const { CHECKPOINTS, nearestOnRoute, totalS } = trackOf(room);
+  // Umumiy masofa (aylanali poygada har aylana qo'shiladi)
+  const prevS = p.nextCheckpoint > 0 ? CHECKPOINTS[p.nextCheckpoint - 1].totalS : 0;
+  const nextS = CHECKPOINTS[p.nextCheckpoint]?.totalS ?? prevS;
   if (!p.last) return prevS;
   const [x, , z] = p.last.state.position;
-  return Math.min(Math.max(nearestOnRoute(x, z).s, prevS), nextS);
+  return Math.min(Math.max(totalS(nearestOnRoute(x, z).s, prevS), prevS), nextS);
 }
 
 /** Joriy o'rinlar: marraga yetganlar vaqt bo'yicha, qolganlar checkpoint + progress bo'yicha */

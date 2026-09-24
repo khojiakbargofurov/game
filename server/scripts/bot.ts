@@ -66,7 +66,8 @@ socket.on('room:update', (room) => {
     track = getTrack(room.settings.trackId);
     const spawn = track.gridSpawn(me.slot);
     const n = track.nearestOnRoute(spawn.position[0], spawn.position[2]);
-    s = spawnS = n.s;
+    // Umumiy masofa: halqada start panjarasi chiziq ortida (manfiy bo'lishi mumkin)
+    s = spawnS = track.totalS(n.s, track.LINE_S);
     lateral = n.lateral;
   }
   console.log(`[${name}] xonada: ${room.players.map((p) => p.name + (p.isHost ? '*' : '')).join(', ')}`);
@@ -97,7 +98,7 @@ socket.on('race:results', ({ results }) => {
 socket.on('player:correction', (st) => {
   corrections++;
   const n = track.nearestOnRoute(st.position[0], st.position[2]);
-  s = n.s;
+  s = track.totalS(n.s, s);
   console.log(`[${name}] server tuzatdi (#${corrections}) → s=${s.toFixed(0)}`);
 });
 
@@ -105,7 +106,8 @@ let tick = 0;
 setInterval(() => {
   if (!racing) return;
   const dt = 1 / NET.TICK_RATE;
-  s = Math.min(track.ROUTE_LENGTH, s + speed * dt);
+  const finish = track.CHECKPOINTS[track.CHECKPOINTS.length - 1].totalS;
+  s = Math.min(finish + 20, s + speed * dt);
   tick++;
   // --cheat: har 3 soniyada 60 m oldinga sakrash
   if (cheat && tick % (NET.TICK_RATE * 3) === 0) s += 60;
@@ -120,7 +122,7 @@ setInterval(() => {
   };
   socket.emit('player:state', state);
   const cp = track.CHECKPOINTS[nextCheckpoint];
-  if (cp && s >= cp.s) {
+  if (cp && s >= cp.totalS) {
     socket.emit('race:checkpoint', { index: nextCheckpoint });
     nextCheckpoint++;
   }

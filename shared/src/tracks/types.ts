@@ -1,12 +1,14 @@
 import type { Vec3 } from '../types';
 import type { ControlPoint, NearestResult, Route, RouteFrame } from '../route';
 
-export type ZoneName = 'forest' | 'canyon' | 'ruins';
+/** circuit — F1 halqasi: keng asfalt, tekis atrof, kerblar */
+export type ZoneName = 'forest' | 'canyon' | 'ruins' | 'circuit';
 
 export interface ZoneWeights {
   forest: number;
   canyon: number;
   ruins: number;
+  circuit: number;
 }
 
 export interface SpawnPoint {
@@ -17,7 +19,14 @@ export interface SpawnPoint {
 
 export interface Checkpoint extends SpawnPoint {
   index: number;
+  /** Marshrut bo'ylab masofa (halqada — aylana ichidagi) */
   s: number;
+  /** Poyga boshidan umumiy masofa (aylanali poygada lap * aylana uzunligi + s) */
+  totalS: number;
+  /** Nechanchi aylana (0 dan); oddiy trassada doim 0 */
+  lap: number;
+  /** Aylana chizig'i (start/marra) — halqada har aylana oxirida */
+  isLapLine: boolean;
   /** Shu radius ichidan o'tsa checkpoint hisoblanadi (gorizontal, m) */
   radius: number;
   isFinish: boolean;
@@ -94,6 +103,12 @@ export interface TrackDef {
   fallenPillars: readonly Lying[];
   arches: readonly number[];
   boulderSpawners: readonly { s: number; side: 1 | -1 }[];
+  /** Tribunalar (tomoshabinlar) — yo'l chetida, `side` tomonda, `s`..`s+length` bo'ylab */
+  grandstands?: readonly { s: number; side: 1 | -1; length: number }[];
+  /** Aylanali poyga: yopiq halqa va aylanalar soni (berilmasa — startdan marragacha bitta yo'l) */
+  laps?: number;
+  /** Halqada start/marra chizig'i joyi (`s`, m). Start panjarasi undan orqada */
+  startLine?: number;
   bridge: BridgeDef | null;
   tunnel: TunnelDef | null;
   narrow: NarrowDef | null;
@@ -114,7 +129,14 @@ export interface Track {
   id: string;
   def: TrackDef;
   ROUTE: Route;
+  /** Marshrut (halqada — bir aylana) uzunligi */
   ROUTE_LENGTH: number;
+  /** Aylanalar soni (oddiy trassada 1) */
+  LAPS: number;
+  /** Start/marra chizig'i `s` (halqada) */
+  LINE_S: number;
+  /** Aylana ichidagi `s` ni `ref` umumiy masofasiga eng yaqin umumiy masofaga aylantirish (halqa uchun) */
+  totalS(localS: number, ref: number): number;
   routeAt(s: number, out?: RouteFrame): RouteFrame;
   nearestOnRoute(x: number, z: number, out?: NearestResult): NearestResult;
   zoneWeights(s: number, out?: ZoneWeights): ZoneWeights;
@@ -139,6 +161,7 @@ export interface Track {
   FALLEN_PILLARS: readonly Lying[];
   ARCHES: readonly number[];
   BOULDER_SPAWNERS: readonly { s: number; side: 1 | -1 }[];
+  GRANDSTANDS: readonly { s: number; side: 1 | -1; length: number }[];
   sampleTerrain(x: number, z: number, out?: TerrainSample): TerrainSample;
   terrainHeight(x: number, z: number): number;
 }

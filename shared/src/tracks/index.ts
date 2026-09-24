@@ -1,4 +1,5 @@
 import { ADVENTURE } from './adventure';
+import { CIRCUIT } from './circuit';
 import { createTrack } from './createTrack';
 import { LAKE } from './lake';
 import { MOUNTAIN } from './mountain';
@@ -8,9 +9,9 @@ export * from './types';
 export { createTrack } from './createTrack';
 
 /** Menyudagi tartibda */
-export const TRACK_DEFS: readonly TrackDef[] = [ADVENTURE, MOUNTAIN, LAKE];
+export const TRACK_DEFS: readonly TrackDef[] = [ADVENTURE, MOUNTAIN, LAKE, CIRCUIT];
 
-export type TrackId = 'adventure' | 'mountain' | 'lake';
+export type TrackId = 'adventure' | 'mountain' | 'lake' | 'circuit';
 export const DEFAULT_TRACK: TrackId = 'adventure';
 
 export function isTrackId(v: unknown): v is TrackId {
