@@ -44,10 +44,38 @@ export const CARS: readonly CarDef[] = [
   { id: 'suv', label: 'Jip', model: 'suv.glb', color: '#2f3a4a', icon: 'suv' },
   { id: 'offroad', label: 'Offroad', model: 'offroad.glb', color: '#4d6b3a', icon: 'suv' },
   { id: 'pickup', label: 'Pikap', model: 'pickup.glb', color: '#9a3a2a', icon: 'pickup' },
+  // Giperkarlar (Sketchfab, baland poligonli — import vositasi ~15–25 ming uchburchakka soddalashtirgan)
+  { id: 'f1', label: 'F1', model: 'f1.glb', color: '#c8102e', icon: 'sport' },
+  { id: 'f1lm', label: 'F1 LM', model: 'f1lm.glb', color: '#f2f2f2', icon: 'sport' },
+  { id: 'gtlm', label: 'GT LM', model: 'gtlm.glb', color: '#e8e8e8', icon: 'sport' },
+  { id: 'pista', label: '488 Pista', model: 'pista.glb', color: '#3f9b4a', icon: 'sport' },
+  { id: 'sf90', label: 'SF90 XX', model: 'sf90.glb', color: '#d11a1a', icon: 'sport' },
+  { id: 'bolide', label: 'Bolide', model: 'bolide.glb', color: '#1d3f8c', icon: 'sport' },
+  { id: 'tourbillon', label: 'Tourbillon', model: 'tourbillon.glb', color: '#2a4a8a', icon: 'sport' },
 ];
 
 /** Yangi mashina qo'shilganda id shu yerga ham yoziladi (CarId tipi shundan) */
-const CAR_IDS = ['super', 'rally', 'sport', 'coupe', 'sedan', 'compact', 'hatchback', 'wagon', 'minivan', 'suv', 'offroad', 'pickup'] as const;
+const CAR_IDS = [
+  'super',
+  'rally',
+  'sport',
+  'coupe',
+  'sedan',
+  'compact',
+  'hatchback',
+  'wagon',
+  'minivan',
+  'suv',
+  'offroad',
+  'pickup',
+  'f1',
+  'f1lm',
+  'gtlm',
+  'pista',
+  'sf90',
+  'bolide',
+  'tourbillon',
+] as const;
 
 export interface CarDef {
   id: CarId;

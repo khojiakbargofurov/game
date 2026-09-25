@@ -88,8 +88,9 @@ npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara,
 
 ## Mashinalar
 
-Menyuda 12 ta mashinadan biri tanlanadi (`client/public/model/`): Superkar va Sketchfab modellari — Rally, Sport, Kupe,
-Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap. Olib tashlangan eski mashina (Kenney baggilari)
+Menyuda 19 ta mashinadan biri tanlanadi (`client/public/model/`): Superkar va Sketchfab modellari — Rally, Sport, Kupe,
+Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap va 7 ta giperkar (F1, F1 LM, GT LM, 488 Pista, SF90 XX,
+Bolide, Tourbillon — import vositasi 78–368 ming uchburchakdan ~15–25 mingga soddalashtirgan). Olib tashlangan eski mashina (Kenney baggilari)
 tanlangan bo'lsa yoki eski klient yuborsa — standart mashina (`DEFAULT_CAR`).
 Tanlangan mashina oldindan yuklanadi, qolganlari (0.3–0.4 MB) — kerak bo'lganda; har mashina o'z
 `Suspense`ida, shuning uchun yuklanayotgan model dunyoni to'xtatmaydi. Bir nechta teksturali modellar runtime'da bitta
@@ -98,7 +99,10 @@ atlasga yig'iladi; bo'yoq tuningi kuzovning asosiy rangini avtomatik aniqlab qay
 **Yangi mashina qo'shish** (tashqi GLB): manba faylni `client/model-src/` ga qo'ying (repo va deploy'ga kirmaydi),
 `client/scripts/import-car.ts` dagi `CARS` ro'yxatiga yozing va `npm run import:cars -w client` ni ishga tushiring —
 vosita mashinani ajratadi (bir faylda bir nechta bo'lsa ham), old tomonni aniqlaydi (old oyna bo'yicha; adashsa — `flip`),
-g'ildiraklarga o'yin nomlarini beradi va teksturalarni siqadi. So'ng `shared/src/config.ts` dagi `CARS` va `CAR_IDS` ga qo'shing.
+g'ildiraklarga o'yin nomlarini beradi va teksturalarni siqadi. Baland poligonli modellar meshoptimizer bilan kuzov ~22 ming,
+g'ildirak ~2.5 ming uchburchakka soddalashtiriladi; g'ildiraklari alohida tugunlarda bo'lmagan modellar uchun
+`wheels: 'quadrant'` — g'ildirak qismlari (tire, rim, brake…) nomi bo'yicha topilib, 4 chorakka bo'linadi.
+Faqat ayrim mashinalarni qayta import qilish: `npm run import:cars -w client -- f1 sf90`. So'ng `shared/src/config.ts` dagi `CARS` va `CAR_IDS` ga qo'shing.
 Tanlov brauzerda saqlanadi; onlayn xonada boshqa o'yinchilar ham sizning mashinangizni ko'radi.
 Ro'yxat — `shared/src/config.ts` dagi `CARS`. Mashinalar faqat ko'rinishi bilan farq qiladi.
 
@@ -232,6 +236,15 @@ O'yindagi tashqi modellar va litsenziyalari — `client/src/credits.ts` (o'yinda
 | CAR Model | Ignition Labs | *to'ldirish kerak* | Superkar |
 | Evo Rally Car | *to'ldirish kerak* | *to'ldirish kerak* | Rally |
 | Generic Passenger Car Pack | *to'ldirish kerak* | *to'ldirish kerak* | Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap |
+| [McLaren F1](https://sketchfab.com/3d-models/mclaren-f1-d96ebc208df54311964cad24f83e1656) | Alex.Ka. | CC BY-NC 4.0 | F1 |
+| [1996 McLaren F1 LM - Patrol](https://sketchfab.com/3d-models/1996-mclaren-f1-lm-patrol-fd1ec456a4b04d3c84a1cb065f52d8c1) | Ddiaz Design | CC BY-NC-SA 4.0 | F1 LM |
+| [2006 Ford GT LM Spec II Test Car](https://sketchfab.com/3d-models/2006-ford-gt-lm-spec-ll-test-car-dd6c3effdb1e43ecadace447ccbda68d) | kevin (ケビン) | CC BY 4.0 | GT LM |
+| [Ferrari 488 Pista Widebody](https://sketchfab.com/3d-models/ferrari-488-pista-widebody-16c28f5b3ed24991ac3d1208f4a8bc1f) | Dev365TH | CC BY 4.0 | 488 Pista |
+| [2023 Ferrari SF90 XX Stradale](https://sketchfab.com/3d-models/2023-ferrari-sf90-xx-stradale-2c80c667232544649328cf3589921bcd) | Ddiaz Design | CC BY 4.0 | SF90 XX |
+| [2020 Bugatti Bolide Concept](https://sketchfab.com/3d-models/2020-bugatti-bolide-concept-658684653b154ffba72d5f9511312ca8) | Ddiaz Design | CC BY-NC-SA 4.0 | Bolide |
+| [2026 Bugatti Tourbillon](https://sketchfab.com/3d-models/2026-bugatti-tourbillon-4f63f5a74611477989cefd9861b9784a) | Ddiaz Design | CC BY-NC-SA 4.0 | Tourbillon |
+
+**NC** (NonCommercial) litsenziyali modellar o'yin tijoriy bo'lsa (reklama, to'lov, sotuv) ishlatilmasligi kerak.
 
 ## Deploy
 

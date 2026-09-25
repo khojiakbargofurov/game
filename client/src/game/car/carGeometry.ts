@@ -209,6 +209,8 @@ function buildCarModel(scene: Object3D): CarModel {
 
 /** Atlas katagi (piksel); o'lcham manba teksturalariga qarab, maksimal ATLAS_CELL */
 const ATLAS_CELL = 512;
+/** Atlasning maksimal o'lchami (px) — teksturasi ko'p modellarda kataklar kichrayadi */
+const ATLAS_MAX = 2048;
 /** Katak chetidan ichkariga (uv ulushi) — qo'shni katak rangi "oqib" kirmasligi uchun */
 const ATLAS_INSET = 0.004;
 
@@ -218,7 +220,7 @@ const ATLAS_INSET = 0.004;
  */
 function buildAtlas(textures: Texture[]) {
   const g = Math.ceil(Math.sqrt(textures.length + 1));
-  const cell = Math.min(ATLAS_CELL, Math.max(...textures.map((t) => (t.image as { width: number }).width)));
+  const cell = Math.min(ATLAS_CELL, Math.floor(ATLAS_MAX / g), Math.max(...textures.map((t) => (t.image as { width: number }).width)));
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = g * cell;
   const ctx = canvas.getContext('2d')!;

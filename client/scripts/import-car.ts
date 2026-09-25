@@ -13,10 +13,11 @@
  *    oyna materiali nomi — 'glass' (bo'yoq tuningi unga tegmaydi).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MeshoptSimplifier } from 'meshoptimizer';
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three';
 
 const SRC_DIR = fileURLToPath(new URL('../model-src/', import.meta.url));
@@ -34,21 +35,44 @@ interface CarSpec {
   flip?: boolean;
   /** Oyna materiali (nomi 'glass' ga o'zgartiriladi) */
   glass: RegExp;
+  /** Oyna regex'i aniq (fara/stop oynalarini ajratish shart emas) */
+  glassStrict?: boolean;
+  /**
+   * G'ildiraklarni topish: 'nodes' (standart) — nomida "wheel" bo'lgan tugunlar; 'quadrant' — g'ildirak qismlari
+   * (tire, rim, brake, caliper... tugun yoki material nomida) markazga nisbatan 4 chorakka bo'linadi
+   */
+  wheels?: 'nodes' | 'quadrant';
+  /** Tekstura o'lchami (px); standart — TEXTURE_SIZE. Mayda teksturasi ko'p modellarda kichikroq */
+  textureSize?: number;
 }
+
+/** Standart: oyna materiallari (fara/stop oynalari emas) */
+const GLASS = /glass|window|windo_|luna|windshield/i;
+const NOT_GLASS = /light|lamp|red|orange|amber|surr|led/i;
+/** Standart: g'ildirak qismlari (tugun yoki material nomi bo'yicha) */
+const WHEEL_PART = /tire|tyre|wheel|\brims?\b|rim[ ._]|rimbolt|rimlogo|rim_nut|brake(?!light)|disk|disc\b|caliper|calliper|volk/i;
 
 const PACK = 'generic_passenger_car_pack.glb';
 const CARS: CarSpec[] = [
-  { id: 'rally', src: 'evo_rally_car.glb', skip: /^fire$/, glass: /^windows$/ },
-  { id: 'sedan', src: PACK, body: 'Sedan Body', glass: /^Glass/ },
-  { id: 'compact', src: PACK, body: 'Compact Body', glass: /^Glass/ },
-  { id: 'coupe', src: PACK, body: 'Coupe Body', glass: /^Glass/, flip: true },
-  { id: 'hatchback', src: PACK, body: 'Hatchback Body', glass: /^Glass/ },
-  { id: 'minivan', src: PACK, body: 'minivan body', glass: /^Glass/ },
-  { id: 'offroad', src: PACK, body: 'Offroad Body', glass: /^Glass/, flip: true },
-  { id: 'pickup', src: PACK, body: 'Pickup Body', glass: /^Glass/ },
-  { id: 'sport', src: PACK, body: 'Sport body', glass: /^Glass/ },
-  { id: 'suv', src: PACK, body: 'SUV Body', glass: /^Glass/ },
-  { id: 'wagon', src: PACK, body: 'Wagon Body', glass: /^Glass/ },
+  { id: 'rally', src: 'evo_rally_car.glb', skip: /^fire$/, glass: /^windows$/, glassStrict: true },
+  { id: 'sedan', src: PACK, body: 'Sedan Body', glass: /^Glass/, glassStrict: true },
+  { id: 'compact', src: PACK, body: 'Compact Body', glass: /^Glass/, glassStrict: true },
+  { id: 'coupe', src: PACK, body: 'Coupe Body', glass: /^Glass/, glassStrict: true, flip: true },
+  { id: 'hatchback', src: PACK, body: 'Hatchback Body', glass: /^Glass/, glassStrict: true },
+  { id: 'minivan', src: PACK, body: 'minivan body', glass: /^Glass/, glassStrict: true },
+  { id: 'offroad', src: PACK, body: 'Offroad Body', glass: /^Glass/, glassStrict: true, flip: true },
+  { id: 'pickup', src: PACK, body: 'Pickup Body', glass: /^Glass/, glassStrict: true },
+  { id: 'sport', src: PACK, body: 'Sport body', glass: /^Glass/, glassStrict: true },
+  { id: 'suv', src: PACK, body: 'SUV Body', glass: /^Glass/, glassStrict: true },
+  { id: 'wagon', src: PACK, body: 'Wagon Body', glass: /^Glass/, glassStrict: true },
+  // Sketchfab giperkarlari (baland poligonli — soddalashtiriladi; g'ildiraklar choraklar bo'yicha)
+  { id: 'f1lm', src: '1996_mclaren_f1_lm_-_patrol.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
+  { id: 'f1', src: 'mclaren_f1.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, skip: /^(carshadow|floor|Back)$/ },
+  { id: 'gtlm', src: '2006__ford_gt_lm_spec_ll_test_car.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
+  { id: 'bolide', src: '2020_bugatti_bolide_concept.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
+  { id: 'sf90', src: '2023_ferrari_sf90_xx_stradale.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
+  { id: 'tourbillon', src: '2026_bugatti_tourbillon.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
+  { id: 'pista', src: 'ferrari_488_pista_widebody.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
 ];
 
 // ───────────── GLB o'qish ─────────────
@@ -225,52 +249,200 @@ class Writer {
 }
 
 const tmp = mkdtempSync(join(tmpdir(), 'import-car-'));
-function compressImage(data: Buffer, name: string): Buffer {
+function compressImage(data: Buffer, name: string, size = TEXTURE_SIZE): Buffer {
   const src = join(tmp, `${name}.src`);
   const out = join(tmp, `${name}.jpg`);
   writeFileSync(src, data);
-  execFileSync('sips', ['-Z', String(TEXTURE_SIZE), '-s', 'format', 'jpeg', '-s', 'formatOptions', '80', src, '--out', out], { stdio: 'ignore' });
+  execFileSync('sips', ['-Z', String(size), '-s', 'format', 'jpeg', '-s', 'formatOptions', '80', src, '--out', out], { stdio: 'ignore' });
   return readFileSync(out);
 }
 
 // ───────────── Bitta mashina ─────────────
 
+/** Uchburchaklar to'plami (material bo'yicha): pozitsiyalar dunyo koordinatalarida, indekslar tartibi to'g'rilangan */
+interface Soup {
+  pos: number[];
+  uv: number[] | null;
+  idx: number[];
+}
+type Soups = Map<number, Soup>;
+
+
+/** Kuzov va g'ildirak uchun uchburchaklar byudjeti (soddalashtirish — meshoptimizer) */
+const BODY_TRIS = 22000;
+const WHEEL_TRIS = 2500;
+
+function soupTris(soups: Soups) {
+  let n = 0;
+  for (const s of soups.values()) n += s.idx.length / 3;
+  return n;
+}
+
+/**
+ * Bir xil pozitsiyadagi uchlarni birlashtirish (Sketchfab bo'laklari alohida — soddalashtirish chetlarni qotirib qo'yardi).
+ * Aniqlik model o'lchamiga nisbiy (ba'zi modellar juda mayda birliklarda: butun mashina ~0.02)
+ */
+function weld(soup: Soup): Soup {
+  let span = 0;
+  for (let k = 0; k < soup.pos.length; k += 3) span = Math.max(span, Math.abs(soup.pos[k]), Math.abs(soup.pos[k + 1]), Math.abs(soup.pos[k + 2]));
+  const q = 1e5 / Math.max(span, 1e-9);
+  const map = new Map<string, number>();
+  const out: Soup = { pos: [], uv: soup.uv ? [] : null, idx: [] };
+  const remap: number[] = [];
+  for (let v = 0; v < soup.pos.length / 3; v++) {
+    const key = `${Math.round(soup.pos[v * 3] * q)},${Math.round(soup.pos[v * 3 + 1] * q)},${Math.round(soup.pos[v * 3 + 2] * q)}`;
+    let k = map.get(key);
+    if (k === undefined) {
+      k = map.size;
+      map.set(key, k);
+      out.pos.push(soup.pos[v * 3], soup.pos[v * 3 + 1], soup.pos[v * 3 + 2]);
+      if (soup.uv && out.uv) out.uv.push(soup.uv[v * 2], soup.uv[v * 2 + 1]);
+    }
+    remap[v] = k;
+  }
+  for (let i = 0; i < soup.idx.length; i += 3) {
+    const [a, b, c] = [remap[soup.idx[i]], remap[soup.idx[i + 1]], remap[soup.idx[i + 2]]];
+    if (a !== b && b !== c && a !== c) out.idx.push(a, b, c);
+  }
+  return out;
+}
+
+/**
+ * Soddalashtirish (kerak bo'lsa) va ishlatilmagan uchlarni tashlab yuborish. Avval topologiyani saqlaydigan
+ * simplify (xato chegarasi oshib boradi), byudjetga yetmasa — "sloppy" (topologiyaga qaramaydi, aniq yetadi).
+ */
+function simplify(input: Soup, ratio: number): Soup {
+  const soup = ratio < 1 ? weld(input) : input;
+  let idx: Uint32Array = Uint32Array.from(soup.idx);
+  if (ratio < 1 && idx.length > 300) {
+    const pos = Float32Array.from(soup.pos);
+    const target = Math.max(3, Math.floor((soup.idx.length / 3) * ratio)) * 3;
+    for (const err of [0.01, 0.05, 0.2]) {
+      idx = MeshoptSimplifier.simplify(Uint32Array.from(soup.idx), pos, 3, target, err)[0] as Uint32Array;
+      if (idx.length <= target * 1.2) break;
+    }
+    if (idx.length > target * 1.2) idx = MeshoptSimplifier.simplifySloppy(idx, pos, 3, null, target, 0.2)[0] as Uint32Array;
+  }
+  const remap = new Map<number, number>();
+  const out: Soup = { pos: [], uv: soup.uv ? [] : null, idx: [] };
+  for (const v of idx) {
+    let k = remap.get(v);
+    if (k === undefined) {
+      k = remap.size;
+      remap.set(v, k);
+      out.pos.push(soup.pos[v * 3], soup.pos[v * 3 + 1], soup.pos[v * 3 + 2]);
+      if (soup.uv && out.uv) out.uv.push(soup.uv[v * 2], soup.uv[v * 2 + 1]);
+    }
+    out.idx.push(k);
+  }
+  return out;
+}
+
 function importCar(spec: CarSpec, source: Source) {
   const { gltf } = source;
+  const glassRe = spec.glass;
+  const isGlass = (name: string) => glassRe.test(name) && (spec.glassStrict || !NOT_GLASS.test(name));
   const meshNodes = gltf.nodes.map((_, i) => i).filter((i) => gltf.nodes[i].mesh !== undefined);
-  const isWheel = (i: number) => [i, ...source.ancestors(i)].some((k) => /wheel/i.test(gltf.nodes[k].name ?? ''));
-  const skipped = (i: number) =>
-    !!spec.skip && gltf.meshes[gltf.nodes[i].mesh!].primitives.every((p) => spec.skip!.test(gltf.materials[p.material ?? 0]?.name ?? ''));
+  const matName = (m: number | undefined) => gltf.materials[m ?? 0]?.name ?? '';
+  const skipPrim = (m: number | undefined) => !!spec.skip?.test(matName(m));
+  const chain = (i: number) => [i, ...source.ancestors(i)].map((k) => gltf.nodes[k].name ?? '');
 
-  // Kuzov meshlari
+  // Kuzov tuguni (bir faylda bir nechta mashina)
   const bodyNode = spec.body ? gltf.nodes.findIndex((n) => n.name === spec.body) : -1;
   if (spec.body && bodyNode < 0) throw new Error(`${spec.id}: '${spec.body}' topilmadi`);
-  const body = meshNodes.filter((i) => !isWheel(i) && !skipped(i) && (bodyNode < 0 || source.ancestors(i).includes(bodyNode)));
-  const bodyBox = new Box3();
-  body.forEach((i) => bodyBox.union(source.meshBox(i)));
-  const bodyCenter = bodyBox.getCenter(new Vector3());
-  const bodySize = bodyBox.getSize(new Vector3());
 
-  // G'ildiraklar: g'ildirak tugunlari (guruh bo'yicha), kuzov markaziga yaqinlari
-  const groups = new Map<number, number[]>();
-  for (const i of meshNodes.filter((k) => isWheel(k) && !skipped(k))) {
-    // Guruh — eng yuqoridagi 'wheel' tuguni (g'ildirak qopqog'i kabi ichki meshlar ham shu g'ildirakka tegishli)
-    const g = [i, ...source.ancestors(i)].reverse().find((k) => /wheel/i.test(gltf.nodes[k].name ?? ''))!;
-    groups.set(g, [...(groups.get(g) ?? []), i]);
+  /** Primitivni to'plamga qo'shish (dunyo koordinatalarida) */
+  const addPrim = (soups: Soups, i: number, p: Gltf['meshes'][number]['primitives'][number], keep?: (a: Vector3, b: Vector3, c: Vector3) => boolean) => {
+    const m = source.world(i);
+    const flip = m.determinant() < 0;
+    const pos = source.read(p.attributes.POSITION);
+    const uv = p.attributes.TEXCOORD_0 !== undefined ? source.read(p.attributes.TEXCOORD_0) : null;
+    const idx = p.indices !== undefined ? source.read(p.indices) : Array.from({ length: pos.length / 3 }, (_, k) => k);
+    const world: Vector3[] = [];
+    for (let k = 0; k < pos.length; k += 3) world.push(new Vector3(pos[k], pos[k + 1], pos[k + 2]).applyMatrix4(m));
+    const key = p.material ?? -1;
+    let soup = soups.get(key);
+    if (!soup) soups.set(key, (soup = { pos: [], uv: uv ? [] : null, idx: [] }));
+    // Bir materialda uv bor/yo'q aralash bo'lsa — uv nolga to'ldiriladi
+    if (!soup.uv && uv && soup.pos.length) soup.uv = new Array((soup.pos.length / 3) * 2).fill(0);
+    const base = soup.pos.length / 3;
+    for (const v of world) soup.pos.push(v.x, v.y, v.z);
+    if (soup.uv) for (let k = 0; k < world.length * 2; k++) soup.uv.push(uv ? uv[k] : 0);
+    for (let k = 0; k < idx.length; k += 3) {
+      const [a, b, c] = [idx[k], idx[k + 1], idx[k + 2]];
+      if (keep && !keep(world[a], world[b], world[c])) continue;
+      soup.idx.push(base + a, base + (flip ? c : b), base + (flip ? b : c));
+    }
+  };
+
+  // ── G'ildiraklar va kuzov ──
+  const body: Soups = new Map();
+  let wheels: { soups: Soups; box: Box3; center: Vector3 }[];
+  const inCar = (i: number) => bodyNode < 0 || source.ancestors(i).includes(bodyNode);
+
+  if (spec.wheels === 'quadrant') {
+    // G'ildirak qismlari nomi bo'yicha, 4 g'ildirak — markazga nisbatan choraklar bo'yicha (bitta meshda bo'lsa ham)
+    const wheelPrims: [number, Gltf['meshes'][number]['primitives'][number]][] = [];
+    for (const i of meshNodes) {
+      if (!inCar(i)) continue;
+      const nodeWheel = chain(i).some((n) => WHEEL_PART.test(n));
+      for (const p of gltf.meshes[gltf.nodes[i].mesh!].primitives) {
+        if (skipPrim(p.material)) continue;
+        if (nodeWheel || WHEEL_PART.test(matName(p.material))) wheelPrims.push([i, p]);
+        else addPrim(body, i, p);
+      }
+    }
+    const all: Soups = new Map();
+    for (const [i, p] of wheelPrims) addPrim(all, i, p);
+    const box = new Box3();
+    for (const s of all.values()) for (let k = 0; k < s.pos.length; k += 3) box.expandByPoint(new Vector3(s.pos[k], s.pos[k + 1], s.pos[k + 2]));
+    const c = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+    const alongX = size.x > size.z;
+    const quadrant = (a: Vector3, b: Vector3, d: Vector3) => {
+      const x = (a.x + b.x + d.x) / 3 - c.x;
+      const z = (a.z + b.z + d.z) / 3 - c.z;
+      return alongX ? (x > 0 ? 1 : 0) * 2 + (z > 0 ? 1 : 0) : (z > 0 ? 1 : 0) * 2 + (x > 0 ? 1 : 0);
+    };
+    wheels = [0, 1, 2, 3].map((q) => {
+      const soups: Soups = new Map();
+      for (const [i, p] of wheelPrims) addPrim(soups, i, p, (a, b, d) => quadrant(a, b, d) === q);
+      const wb = new Box3();
+      for (const s of soups.values()) for (const k of s.idx) wb.expandByPoint(new Vector3(s.pos[k * 3], s.pos[k * 3 + 1], s.pos[k * 3 + 2]));
+      return { soups, box: wb, center: wb.getCenter(new Vector3()) };
+    });
+    if (wheels.some((w) => w.box.isEmpty())) throw new Error(`${spec.id}: g'ildirak qismlari topilmadi`);
+  } else {
+    // Nomli g'ildirak tugunlari (guruh — eng yuqoridagi 'wheel' tuguni), kuzov markaziga eng yaqin 4 tasi
+    const isWheel = (i: number) => chain(i).some((n) => /wheel/i.test(n));
+    for (const i of meshNodes) {
+      if (!isWheel(i) && inCar(i)) for (const p of gltf.meshes[gltf.nodes[i].mesh!].primitives) if (!skipPrim(p.material)) addPrim(body, i, p);
+    }
+    const bb = new Box3();
+    for (const s of body.values()) for (let k = 0; k < s.pos.length; k += 3) bb.expandByPoint(new Vector3(s.pos[k], s.pos[k + 1], s.pos[k + 2]));
+    const bc = bb.getCenter(new Vector3());
+    const bs = bb.getSize(new Vector3());
+    const groups = new Map<number, number[]>();
+    for (const i of meshNodes.filter(isWheel)) {
+      const g = [i, ...source.ancestors(i)].reverse().find((k) => /wheel/i.test(gltf.nodes[k].name ?? ''))!;
+      groups.set(g, [...(groups.get(g) ?? []), i]);
+    }
+    const reach = Math.max(bs.x, bs.z) * 0.6;
+    wheels = [...groups.values()]
+      .map((nodes) => {
+        const soups: Soups = new Map();
+        for (const i of nodes) for (const p of gltf.meshes[gltf.nodes[i].mesh!].primitives) if (!skipPrim(p.material)) addPrim(soups, i, p);
+        const box = new Box3();
+        nodes.forEach((i) => box.union(source.meshBox(i)));
+        return { soups, box, center: box.getCenter(new Vector3()) };
+      })
+      .filter((w) => Math.hypot(w.center.x - bc.x, w.center.z - bc.z) < reach)
+      .sort((a, b) => Math.hypot(a.center.x - bc.x, a.center.z - bc.z) - Math.hypot(b.center.x - bc.x, b.center.z - bc.z))
+      .slice(0, 4);
   }
-  const reach = Math.max(bodySize.x, bodySize.z) * 0.6;
-  const wheels = [...groups.values()]
-    .map((meshes) => {
-      const box = new Box3();
-      meshes.forEach((i) => box.union(source.meshBox(i)));
-      return { meshes, box, center: box.getCenter(new Vector3()) };
-    })
-    .filter((w) => Math.hypot(w.center.x - bodyCenter.x, w.center.z - bodyCenter.z) < reach)
-    .sort((a, b) => Math.hypot(a.center.x - bodyCenter.x, a.center.z - bodyCenter.z) - Math.hypot(b.center.x - bodyCenter.x, b.center.z - bodyCenter.z))
-    .slice(0, 4);
   if (wheels.length !== 4) throw new Error(`${spec.id}: 4 ta g'ildirak topilmadi (${wheels.length})`);
 
-  // Mashina o'qlari: g'ildiraklar markazlari bo'yicha uzunlik o'qi (eng katta tarqalish)
+  // ── Mashina o'qlari: g'ildiraklar markazlari bo'yicha uzunlik o'qi (eng katta tarqalish) ──
   const mid = wheels.reduce((v, w) => v.add(w.center), new Vector3()).multiplyScalar(1 / 4);
   let sxx = 0;
   let szz = 0;
@@ -289,19 +461,14 @@ function importCar(spec: CarSpec, source: Source) {
   const glassDir = new Vector3();
   const ab = new Vector3();
   const ac = new Vector3();
-  for (const i of body) {
-    const m = source.world(i);
-    for (const p of gltf.meshes[gltf.nodes[i].mesh!].primitives) {
-      if (!spec.glass.test(gltf.materials[p.material ?? 0]?.name ?? '')) continue;
-      const pos = source.read(p.attributes.POSITION);
-      const v = (k: number) => new Vector3(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]).applyMatrix4(m);
-      const idx = p.indices !== undefined ? source.read(p.indices) : Array.from({ length: pos.length / 3 }, (_, k) => k);
-      for (let k = 0; k < idx.length; k += 3) {
-        const a = v(idx[k]);
-        ab.copy(v(idx[k + 1])).sub(a);
-        ac.copy(v(idx[k + 2])).sub(a);
-        glassDir.add(ab.cross(ac).multiplyScalar(m.determinant() < 0 ? -1 : 1));
-      }
+  for (const [mi, s] of body) {
+    if (!isGlass(matName(mi))) continue;
+    const v = (k: number) => new Vector3(s.pos[k * 3], s.pos[k * 3 + 1], s.pos[k * 3 + 2]);
+    for (let k = 0; k < s.idx.length; k += 3) {
+      const a = v(s.idx[k]);
+      ab.copy(v(s.idx[k + 1])).sub(a);
+      ac.copy(v(s.idx[k + 2])).sub(a);
+      glassDir.add(ab.cross(ac));
     }
   }
   const glassFwd = glassDir.dot(fwd);
@@ -309,22 +476,22 @@ function importCar(spec: CarSpec, source: Source) {
   if (spec.flip) fwd.negate();
   const left = new Vector3(fwd.z, 0, -fwd.x);
   const ground = Math.min(...wheels.map((w) => w.box.min.y));
-
-  const toCar = (p: Vector3) => {
-    const d = p.clone().sub(mid);
-    return [d.dot(left), p.y - ground, d.dot(fwd)];
+  const toCar = (x: number, y: number, z: number) => {
+    const dx = x - mid.x;
+    const dz = z - mid.z;
+    return [dx * left.x + dz * left.z, y - ground, dx * fwd.x + dz * fwd.z];
   };
 
-  // Yozish
+  // ── Yozish ──
   const w = new Writer();
   const materialMap = new Map<number, number>();
   const imageMap = new Map<number, number>();
   const material = (mi: number | undefined) => {
     const key = mi ?? -1;
     if (materialMap.has(key)) return materialMap.get(key)!;
-    const src = mi !== undefined ? gltf.materials[mi] : {};
+    const src = mi !== undefined && mi >= 0 ? gltf.materials[mi] : {};
     const pbr = src.pbrMetallicRoughness ?? {};
-    const name = spec.glass.test(src.name ?? '') ? 'glass' : (src.name ?? 'material').replace(/mitsubishi/i, 'body');
+    const name = isGlass(src.name ?? '') ? 'glass' : (src.name ?? 'material').replace(/mitsubishi/i, 'body');
     const out: Record<string, unknown> = {
       name,
       pbrMetallicRoughness: { baseColorFactor: pbr.baseColorFactor ?? [1, 1, 1, 1], metallicFactor: 0.2, roughnessFactor: 0.5 },
@@ -332,7 +499,7 @@ function importCar(spec: CarSpec, source: Source) {
     if (pbr.baseColorTexture) {
       const img = gltf.textures[pbr.baseColorTexture.index].source;
       if (!imageMap.has(img)) {
-        const view = w.view(compressImage(source.image(img), `${spec.id}-${img}`));
+        const view = w.view(compressImage(source.image(img), `${spec.id}-${img}`, spec.textureSize));
         w.json.images.push({ bufferView: view, mimeType: 'image/jpeg' });
         w.json.textures.push({ sampler: 0, source: w.json.images.length - 1 });
         imageMap.set(img, w.json.textures.length - 1);
@@ -344,40 +511,31 @@ function importCar(spec: CarSpec, source: Source) {
     return w.json.materials.length - 1;
   };
 
-  const primitivesOf = (nodes: number[]) => {
+  let written = 0;
+  /** Material bo'yicha to'plamlar → soddalashtirilgan primitivlar (mashina koordinatalarida) */
+  const node = (name: string, soups: Soups, budget: number) => {
+    const ratio = Math.min(1, budget / Math.max(1, soupTris(soups)));
     const prims: object[] = [];
-    for (const i of nodes) {
-      const m = source.world(i);
-      for (const p of gltf.meshes[gltf.nodes[i].mesh!].primitives) {
-        if (spec.skip?.test(gltf.materials[p.material ?? 0]?.name ?? '')) continue;
-        const pos = source.read(p.attributes.POSITION);
-        const positions: number[] = [];
-        for (let k = 0; k < pos.length; k += 3) positions.push(...toCar(new Vector3(pos[k], pos[k + 1], pos[k + 2]).applyMatrix4(m)));
-        const attributes: Record<string, number> = { POSITION: w.accessor(positions, 'VEC3') };
-        // Normallar yozilmaydi (hajm ~40% kichik) — o'yin ularni yuklashda hisoblaydi (carGeometry bake)
-        if (p.attributes.TEXCOORD_0 !== undefined) attributes.TEXCOORD_0 = w.accessor(source.read(p.attributes.TEXCOORD_0), 'VEC2');
-        // Aylantirish oynaviy bo'lsa (det < 0) uchburchaklar tartibi teskari bo'ladi
-        let idx = p.indices !== undefined ? source.read(p.indices) : Array.from({ length: pos.length / 3 }, (_, k) => k);
-        if (m.determinant() < 0) {
-          const flipped: number[] = [];
-          for (let k = 0; k < idx.length; k += 3) flipped.push(idx[k], idx[k + 2], idx[k + 1]);
-          idx = flipped;
-        }
-        prims.push({ attributes, indices: w.accessor(idx, 'SCALAR', true), material: material(p.material) });
-      }
+    for (const [mi, raw] of soups) {
+      if (!raw.idx.length) continue;
+      const s = simplify(raw, ratio);
+      if (!s.idx.length) continue;
+      const positions: number[] = [];
+      for (let k = 0; k < s.pos.length; k += 3) positions.push(...toCar(s.pos[k], s.pos[k + 1], s.pos[k + 2]));
+      // Normallar yozilmaydi (hajm ~40% kichik) — o'yin ularni yuklashda hisoblaydi (carGeometry bake)
+      const attributes: Record<string, number> = { POSITION: w.accessor(positions, 'VEC3') };
+      if (s.uv) attributes.TEXCOORD_0 = w.accessor(s.uv, 'VEC2');
+      prims.push({ attributes, indices: w.accessor(s.idx, 'SCALAR', true), material: material(mi < 0 ? undefined : mi) });
+      written += s.idx.length / 3;
     }
-    return prims;
-  };
-
-  const node = (name: string, meshNodesList: number[]) => {
-    w.json.meshes.push({ name, primitives: primitivesOf(meshNodesList) });
+    w.json.meshes.push({ name, primitives: prims });
     w.json.nodes.push({ name, mesh: w.json.meshes.length - 1 });
     return w.json.nodes.length - 1;
   };
   /** Faqat joyi kerak bo'lgan g'ildirak (o'yin geometriyani old-chapdan oladi): chegara qutisi — 12 uchburchak */
   const marker = (name: string, box: Box3) => {
-    const lo = toCar(box.min);
-    const hi = toCar(box.max);
+    const lo = toCar(box.min.x, box.min.y, box.min.z);
+    const hi = toCar(box.max.x, box.max.y, box.max.z);
     const [x0, x1] = [Math.min(lo[0], hi[0]), Math.max(lo[0], hi[0])];
     const [z0, z1] = [Math.min(lo[2], hi[2]), Math.max(lo[2], hi[2])];
     const [y0, y1] = [lo[1], hi[1]];
@@ -387,11 +545,12 @@ function importCar(spec: CarSpec, source: Source) {
     w.json.nodes.push({ name, mesh: w.json.meshes.length - 1 });
     return w.json.nodes.length - 1;
   };
-  const roots = [node('body', body)];
+  const sourceTris = soupTris(body) + wheels.reduce((n, wh) => n + soupTris(wh.soups), 0);
+  const roots = [node('body', body, BODY_TRIS)];
   for (const wheel of wheels) {
-    const [x, , z] = toCar(wheel.center);
+    const [x, , z] = toCar(wheel.center.x, wheel.center.y, wheel.center.z);
     const name = `wheel${z > 0 ? 'Front' : 'Back'}${x > 0 ? 'Left' : 'Right'}`;
-    roots.push(name === 'wheelFrontLeft' ? node(name, wheel.meshes) : marker(name, wheel.box));
+    roots.push(name === 'wheelFrontLeft' ? node(name, wheel.soups, WHEEL_TRIS) : marker(name, wheel.box));
   }
   const names = roots.slice(1).map((r) => (w.json.nodes[r] as { name: string }).name);
   if (new Set(names).size !== 4) throw new Error(`${spec.id}: g'ildirak joylari aniqlanmadi (${names.join(', ')})`);
@@ -400,15 +559,22 @@ function importCar(spec: CarSpec, source: Source) {
   const file = join(MODEL_DIR, `${spec.id}.glb`);
   w.save(file);
   const size = readFileSync(file).length;
-  const tris = body.length;
   console.log(
-    `${spec.id.padEnd(10)} ${(size / 1024).toFixed(0).padStart(5)} KB  kuzov meshlari: ${tris}, tekstura: ${imageMap.size}, ` +
-      `oyna normallari: ${glassFwd > 0 ? 'old' : 'orqa'} tomonga (${Math.abs(glassFwd).toFixed(3)})`,
+    `${spec.id.padEnd(10)} ${(size / 1024).toFixed(0).padStart(5)} KB  uchburchak: ${sourceTris} → ${written}, tekstura: ${imageMap.size}, ` +
+      `oyna: ${glassFwd > 0 ? 'old' : 'orqa'} tomonga (${Math.abs(glassFwd).toFixed(3)})`,
   );
 }
 
+// Faqat berilgan id'lar (argumentlar) yoki manba fayli mavjud barcha mashinalar
+await MeshoptSimplifier.ready;
+const only = process.argv.slice(2);
 const sources = new Map<string, Source>();
 for (const spec of CARS) {
+  if (only.length && !only.includes(spec.id)) continue;
+  if (!existsSync(join(SRC_DIR, spec.src))) {
+    console.log(`${spec.id.padEnd(10)} o'tkazib yuborildi: ${spec.src} yo'q (model-src/)`);
+    continue;
+  }
   if (!sources.has(spec.src)) sources.set(spec.src, new Source(spec.src));
   importCar(spec, sources.get(spec.src)!);
 }
