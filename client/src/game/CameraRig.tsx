@@ -8,7 +8,9 @@ export function CameraRig() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'KeyC') setFree((f) => !f);
+      // Ism/kod kiritilayotganda C harfi kamerani almashtirmasin
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (e.code === 'KeyC' && tag !== 'INPUT' && tag !== 'TEXTAREA') setFree((f) => !f);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

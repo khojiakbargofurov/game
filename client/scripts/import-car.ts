@@ -44,6 +44,21 @@ interface CarSpec {
   wheels?: 'nodes' | 'quadrant';
   /** Tekstura o'lchami (px); standart — TEXTURE_SIZE. Mayda teksturasi ko'p modellarda kichikroq */
   textureSize?: number;
+  /**
+   * Material rangini almashtirish (nomi → sRGB hex). Ba'zi manbalarda bo'yoq rangi GLB'ga tushmagan
+   * (masalan, 488 Pista: bo'yoq materiali baseColorFactor = qora) — mashina qop-qora chiqardi
+   */
+  colors?: Record<string, string>;
+}
+
+/** sRGB hex → glTF baseColorFactor (chiziqli) */
+function linearColor(hex: string): number[] {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v: number) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return [ch((n >> 16) & 255), ch((n >> 8) & 255), ch(n & 255), 1];
 }
 
 /** Standart: oyna materiallari (fara/stop oynalari emas) */
@@ -56,23 +71,22 @@ const PACK = 'generic_passenger_car_pack.glb';
 const CARS: CarSpec[] = [
   { id: 'rally', src: 'evo_rally_car.glb', skip: /^fire$/, glass: /^windows$/, glassStrict: true },
   { id: 'sedan', src: PACK, body: 'Sedan Body', glass: /^Glass/, glassStrict: true },
-  { id: 'compact', src: PACK, body: 'Compact Body', glass: /^Glass/, glassStrict: true },
   { id: 'coupe', src: PACK, body: 'Coupe Body', glass: /^Glass/, glassStrict: true, flip: true },
-  { id: 'hatchback', src: PACK, body: 'Hatchback Body', glass: /^Glass/, glassStrict: true },
-  { id: 'minivan', src: PACK, body: 'minivan body', glass: /^Glass/, glassStrict: true },
-  { id: 'offroad', src: PACK, body: 'Offroad Body', glass: /^Glass/, glassStrict: true, flip: true },
-  { id: 'pickup', src: PACK, body: 'Pickup Body', glass: /^Glass/, glassStrict: true },
   { id: 'sport', src: PACK, body: 'Sport body', glass: /^Glass/, glassStrict: true },
-  { id: 'suv', src: PACK, body: 'SUV Body', glass: /^Glass/, glassStrict: true },
-  { id: 'wagon', src: PACK, body: 'Wagon Body', glass: /^Glass/, glassStrict: true },
   // Sketchfab giperkarlari (baland poligonli — soddalashtiriladi; g'ildiraklar choraklar bo'yicha)
   { id: 'f1lm', src: '1996_mclaren_f1_lm_-_patrol.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
   { id: 'f1', src: 'mclaren_f1.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, skip: /^(carshadow|floor|Back)$/ },
-  { id: 'gtlm', src: '2006__ford_gt_lm_spec_ll_test_car.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
   { id: 'bolide', src: '2020_bugatti_bolide_concept.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256, flip: true },
   { id: 'sf90', src: '2023_ferrari_sf90_xx_stradale.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
   { id: 'tourbillon', src: '2026_bugatti_tourbillon.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
-  { id: 'pista', src: 'ferrari_488_pista_widebody.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
+  {
+    id: 'pista',
+    src: 'ferrari_488_pista_widebody.glb',
+    glass: GLASS,
+    wheels: 'quadrant',
+    textureSize: 256,
+    colors: { GREEN_car_paint: '#3f9b4a', Coloured: '#3f9b4a' },
+  },
 ];
 
 // ───────────── GLB o'qish ─────────────
@@ -494,7 +508,11 @@ function importCar(spec: CarSpec, source: Source) {
     const name = isGlass(src.name ?? '') ? 'glass' : (src.name ?? 'material').replace(/mitsubishi/i, 'body');
     const out: Record<string, unknown> = {
       name,
-      pbrMetallicRoughness: { baseColorFactor: pbr.baseColorFactor ?? [1, 1, 1, 1], metallicFactor: 0.2, roughnessFactor: 0.5 },
+      pbrMetallicRoughness: {
+        baseColorFactor: spec.colors?.[src.name ?? ''] ? linearColor(spec.colors[src.name!]) : (pbr.baseColorFactor ?? [1, 1, 1, 1]),
+        metallicFactor: 0.2,
+        roughnessFactor: 0.5,
+      },
     };
     if (pbr.baseColorTexture) {
       const img = gltf.textures[pbr.baseColorTexture.index].source;

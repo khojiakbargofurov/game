@@ -37,17 +37,9 @@ export const CARS: readonly CarDef[] = [
   { id: 'sport', label: 'Sport', model: 'sport.glb', color: '#c93a3a', icon: 'sport' },
   { id: 'coupe', label: 'Kupe', model: 'coupe.glb', color: '#3a6fc9', icon: 'sport' },
   { id: 'sedan', label: 'Sedan', model: 'sedan.glb', color: '#c9b53a', icon: 'sedan' },
-  { id: 'compact', label: 'Kompakt', model: 'compact.glb', color: '#3ac98f', icon: 'hatch' },
-  { id: 'hatchback', label: 'Xetchbek', model: 'hatchback.glb', color: '#c97a3a', icon: 'hatch' },
-  { id: 'wagon', label: 'Universal', model: 'wagon.glb', color: '#8a8f99', icon: 'wagon' },
-  { id: 'minivan', label: 'Miniven', model: 'minivan.glb', color: '#b8bcc4', icon: 'van' },
-  { id: 'suv', label: 'Jip', model: 'suv.glb', color: '#2f3a4a', icon: 'suv' },
-  { id: 'offroad', label: 'Offroad', model: 'offroad.glb', color: '#4d6b3a', icon: 'suv' },
-  { id: 'pickup', label: 'Pikap', model: 'pickup.glb', color: '#9a3a2a', icon: 'pickup' },
   // Giperkarlar (Sketchfab, baland poligonli — import vositasi ~15–25 ming uchburchakka soddalashtirgan)
   { id: 'f1', label: 'F1', model: 'f1.glb', color: '#c8102e', icon: 'sport' },
   { id: 'f1lm', label: 'F1 LM', model: 'f1lm.glb', color: '#f2f2f2', icon: 'sport' },
-  { id: 'gtlm', label: 'GT LM', model: 'gtlm.glb', color: '#e8e8e8', icon: 'sport' },
   { id: 'pista', label: '488 Pista', model: 'pista.glb', color: '#3f9b4a', icon: 'sport' },
   { id: 'sf90', label: 'SF90 XX', model: 'sf90.glb', color: '#d11a1a', icon: 'sport' },
   { id: 'bolide', label: 'Bolide', model: 'bolide.glb', color: '#1d3f8c', icon: 'sport' },
@@ -61,16 +53,8 @@ const CAR_IDS = [
   'sport',
   'coupe',
   'sedan',
-  'compact',
-  'hatchback',
-  'wagon',
-  'minivan',
-  'suv',
-  'offroad',
-  'pickup',
   'f1',
   'f1lm',
-  'gtlm',
   'pista',
   'sf90',
   'bolide',
@@ -86,7 +70,7 @@ export interface CarDef {
 }
 
 export type CarId = (typeof CAR_IDS)[number];
-export type CarIconShape = 'sport' | 'sedan' | 'hatch' | 'wagon' | 'van' | 'suv' | 'pickup';
+export type CarIconShape = 'sport' | 'sedan';
 /** Standart mashina; eski (olib tashlangan) mashina id'si kelsa ham shu (server, localStorage) */
 export const DEFAULT_CAR: CarId = 'sport';
 
@@ -215,6 +199,9 @@ export const CAMERA = {
 
   /** Countdown paytidagi intro: mashina atrofida old tomondan orqaga aylanish */
   INTRO: { RADIUS: 7.5, HEIGHT: 2.2, START_ANGLE: Math.PI * 0.9 },
+
+  /** Menyu (shourum): mashina atrofida sekin aylanish — radian/s, radius, balandlik, qarash nuqtasi balandligi, FOV qo'shimchasi */
+  SHOWROOM: { SPEED: 0.16, RADIUS: 6.2, HEIGHT: 1.5, LOOK_Y: 0.55, FOV: -8, START_ANGLE: Math.PI * 0.8 },
 } as const;
 
 export type CameraMode = keyof typeof CAMERA.MODES;
@@ -267,6 +254,14 @@ export const COLORS = {
   roadCanyon: '#b98659',
   roadRuins: '#bcab8a',
   roadEdge: '#7d5c3a',
+  /** Asfalt (Road.tsx): zonalar bo'yicha; road* ranglari — yo'l atrofidagi tuproq yelka (Terrain) */
+  asphaltForest: '#3c3e43',
+  asphaltCanyon: '#48443f',
+  asphaltRuins: '#524f4a',
+  /** Yo'l chiziqlari va burilishdagi bordyurlar (kerb) */
+  roadLine: '#f1f1ec',
+  kerbRed: '#c4232c',
+  kerbWhite: '#eceef0',
   wood: '#8a5a34',
   woodDark: '#5e3c22',
   crystal: '#5ff2ff',

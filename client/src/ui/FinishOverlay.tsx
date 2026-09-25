@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { ROOM } from '@game/shared';
 import { backToMenu, loadName, resetRoom, startSolo } from '../net/session';
 import { SELF_ID, botRuntime, useBots } from '../store/bots';
@@ -12,72 +12,148 @@ const blurThen = (fn: () => void) => () => {
   fn();
 };
 
-const PLACE_ICON = ['🥇', '🥈', '🥉'];
+/** Natijalar qatori (onlayn ham, yakka ham) */
+interface Row {
+  key: string;
+  place: number;
+  name: string;
+  color: string;
+  time: string;
+  /** Onlayn: server tasdiqlagan tangalar */
+  coins?: number;
+  me: boolean;
+}
 
-/** Onlayn natijalar jadvali (server yuborgan) */
-function ResultsTable() {
-  const results = useNetStore((s) => s.results)!;
-  const selfId = useNetStore((s) => s.selfId);
-  const isHost = useNetStore((s) => s.room?.players.some((p) => p.id === s.selfId && p.isHost) ?? false);
-  const error = useNetStore((s) => s.error);
+/** Tangalar sanog'i 0 dan maqsadgacha "yugurib" chiqadi */
+function useCountUp(target: number, ms = 900) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    const t0 = performance.now();
+    let raf = 0;
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      setV(Math.round(target * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return v;
+}
+
+/**
+ * Natijalar ekrani (Asphalt uslubi): katta o'rin sarlavhasi, qiya qatorlar ketma-ket kirib keladi,
+ * o'z qatorimiz ajralib turadi, pastda tanga mukofoti va tugmalar
+ */
+function ResultsView({
+  title,
+  time,
+  rows,
+  earned,
+  bonus,
+  children,
+}: {
+  title: string;
+  time?: string;
+  rows?: Row[];
+  earned: number;
+  bonus?: number;
+  children: ReactNode;
+}) {
   const wallet = useGarage((s) => s.wallet);
-  const mine = results.find((r) => r.playerId === selfId);
-
+  const shown = useCountUp(earned + (bonus ?? 0));
+  const showCoins = rows?.some((r) => r.coins !== undefined);
   return (
-    <div className="overlay">
-      <div className="panel results">
-        <h1>🏁 Natijalar</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>O'rin</th>
-              <th>O'yinchi</th>
-              <th>Vaqt</th>
-              <th>🪙</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r) => (
-              <tr key={r.playerId} className={r.playerId === selfId ? 'me' : undefined}>
-                <td>{PLACE_ICON[r.place - 1] ?? r.place}</td>
-                <td className="pcell">
-                  <span className="dot" style={{ background: r.color }} />
-                  {r.name}
-                </td>
-                <td className="num">{r.timeMs !== null ? formatTime(r.timeMs) : `DNF · ${r.checkpoints}🚩`}</td>
-                <td className="num">{r.coins}</td>
-              </tr>
+    <div className="hub hub-results">
+      <div className="hub-res">
+        <header className="hub-res-head">
+          <small className="hub-kicker">Poyga yakunlandi</small>
+          <h1 className="hub-res-title">{title}</h1>
+          {time && <div className="hub-res-time">⏱ {time}</div>}
+        </header>
+
+        {rows && (
+          <ol className="hub-res-rows">
+            {rows.map((r, i) => (
+              <li
+                key={r.key}
+                className={`${r.me ? 'me' : ''}${r.place <= 3 ? ` p${r.place}` : ''}`}
+                style={{ '--pc': r.color, animationDelay: `${0.15 + i * 0.07}s` } as CSSProperties}
+              >
+                <span className="hub-res-place">{r.place}</span>
+                <span className="hub-res-name">{r.name}</span>
+                <span className="hub-res-rtime">{r.time}</span>
+                {showCoins && <span className="hub-res-coins">🪙 {r.coins ?? 0}</span>}
+              </li>
             ))}
-          </tbody>
-        </table>
-        {mine && (
-          <p className="note">
-            +{mine.coins} tanga garajga (jami 🪙 {wallet})
-          </p>
+          </ol>
         )}
-        {isHost ? (
-          <>
-            <button className="primary" onClick={blurThen(() => resetRoom(true))}>
-              Qayta o'ynash
-            </button>
-            <button onClick={blurThen(() => resetRoom(false))}>Lobbyga qaytish</button>
-          </>
-        ) : (
-          <p className="note">Xona egasi qayta boshlashini kuting…</p>
-        )}
-        <button onClick={blurThen(backToMenu)}>Xonadan chiqish</button>
-        {error && <p className="error">{error}</p>}
+
+        <div className="hub-res-reward">
+          <span className="hub-res-plus">+{shown}</span>
+          <span>
+            tanga garajga
+            {bonus ? ` (shundan ${bonus} — o'rin bonusi)` : ''}
+            <small>jami 🪙 {wallet}</small>
+          </span>
+        </div>
+
+        <div className="hub-res-actions">{children}</div>
       </div>
     </div>
   );
 }
 
-/** Yakka rejim, botlar bilan: jonli natijalar jadvali (marraga yetmagan botlar — "poygada…") */
+/** Onlayn natijalar (server yuborgan) */
+function ResultsTable() {
+  const results = useNetStore((s) => s.results)!;
+  const selfId = useNetStore((s) => s.selfId);
+  const isHost = useNetStore((s) => s.room?.players.some((p) => p.id === s.selfId && p.isHost) ?? false);
+  const error = useNetStore((s) => s.error);
+  const mine = results.find((r) => r.playerId === selfId);
+
+  const rows: Row[] = results.map((r) => ({
+    key: r.playerId,
+    place: r.place,
+    name: r.name,
+    color: r.color,
+    time: r.timeMs !== null ? formatTime(r.timeMs) : `DNF · ${r.checkpoints}🚩`,
+    coins: r.coins,
+    me: r.playerId === selfId,
+  }));
+
+  return (
+    <ResultsView
+      title={mine ? (mine.timeMs !== null ? `${mine.place}-o'rin` : 'DNF') : 'Natijalar'}
+      time={mine?.timeMs != null ? formatTime(mine.timeMs) : undefined}
+      rows={rows}
+      earned={mine?.coins ?? 0}
+    >
+      {error && <p className="hub-note error">{error}</p>}
+      <button className="hub-btn" onClick={blurThen(backToMenu)}>
+        Xonadan chiqish
+      </button>
+      {isHost ? (
+        <>
+          <button className="hub-btn" onClick={blurThen(() => resetRoom(false))}>
+            Lobbyga qaytish
+          </button>
+          <button className="hub-go" onClick={blurThen(() => resetRoom(true))}>
+            <span>Qayta ▶</span>
+          </button>
+        </>
+      ) : (
+        <span className="hub-hint">Xona egasi qayta boshlashini kuting…</span>
+      )}
+    </ResultsView>
+  );
+}
+
+/** Yakka rejim, botlar bilan: jonli natijalar (marraga yetmagan botlar — "poygada…") */
 function SoloResults({ time, coins }: { time: number; coins: number }) {
   const bots = useBots((s) => s.bots);
   const standings = useBots((s) => s.standings);
   const finish = useBots((s) => s.finish);
-  const wallet = useGarage((s) => s.wallet);
   // Botlar marraga yetgan sari vaqtlar paydo bo'ladi — jadval yarim soniyada yangilanadi
   const [, tick] = useState(0);
   useEffect(() => {
@@ -85,47 +161,38 @@ function SoloResults({ time, coins }: { time: number; coins: number }) {
     return () => clearInterval(id);
   }, []);
 
-  const rows = standings.map((id) => {
-    if (id === SELF_ID) return { id, name: loadName().trim() || 'Siz', color: ROOM.PLAYER_COLORS[0], time };
+  const rows: Row[] = standings.map((id, i) => {
+    if (id === SELF_ID) {
+      return { key: id, place: i + 1, name: loadName().trim() || 'Siz', color: ROOM.PLAYER_COLORS[0], time: formatTime(time), me: true };
+    }
     const b = bots.find((x) => x.id === id)!;
-    return { id, name: b.name, color: b.color, time: botRuntime.get(id)?.finishMs ?? null };
+    const t = botRuntime.get(id)?.finishMs ?? null;
+    return { key: id, place: i + 1, name: b.name, color: b.color, time: t !== null ? formatTime(t) : 'poygada…', me: false };
   });
 
   return (
-    <div className="overlay">
-      <div className="panel results">
-        <h1>🏁 {finish ? `${finish.place}-o'rin!` : 'Marra!'}</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>O'rin</th>
-              <th>Poygachi</th>
-              <th>Vaqt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.id} className={r.id === SELF_ID ? 'me' : undefined}>
-                <td>{PLACE_ICON[i] ?? i + 1}</td>
-                <td className="pcell">
-                  <span className="dot" style={{ background: r.color }} />
-                  {r.name}
-                </td>
-                <td className="num">{r.time !== null ? formatTime(r.time) : 'poygada…'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="note">
-          Tangalar: {coins}
-          {finish && finish.bonus > 0 && ` + ${finish.bonus} o'rin bonusi`} → garajga (jami 🪙 {wallet})
-        </p>
-        <button className="primary" onClick={blurThen(startSolo)}>
-          Qayta o'ynash
-        </button>
-        <button onClick={blurThen(backToMenu)}>Menyu</button>
-      </div>
-    </div>
+    <ResultsView
+      title={finish ? `${finish.place}-o'rin` : 'Marra!'}
+      time={formatTime(time)}
+      rows={rows}
+      earned={coins}
+      bonus={finish?.bonus}
+    >
+      <SoloActions />
+    </ResultsView>
+  );
+}
+
+function SoloActions() {
+  return (
+    <>
+      <button className="hub-btn" onClick={blurThen(backToMenu)}>
+        Menyu
+      </button>
+      <button className="hub-go" onClick={blurThen(startSolo)}>
+        <span>Qayta ▶</span>
+      </button>
+    </>
   );
 }
 
@@ -153,7 +220,6 @@ export function FinishOverlay() {
   const coins = useGameStore((s) => s.coins);
   const mode = useNetStore((s) => s.mode);
   const results = useNetStore((s) => s.results);
-  const wallet = useGarage((s) => s.wallet);
   const hasBots = useBots((s) => s.bots.length > 0);
 
   if (mode === 'online') {
@@ -165,18 +231,8 @@ export function FinishOverlay() {
   if (phase !== 'finished' || !startedAt || !finishedAt) return null;
   if (hasBots) return <SoloResults time={finishedAt - startedAt} coins={coins} />;
   return (
-    <div className="overlay">
-      <div className="panel">
-        <h1>🏁 Marra!</h1>
-        <p className="big">{formatTime(finishedAt - startedAt)}</p>
-        <p>
-          Tangalar: {coins} → garajga qo'shildi (jami 🪙 {wallet})
-        </p>
-        <button className="primary" onClick={blurThen(startSolo)}>
-          Qayta o'ynash
-        </button>
-        <button onClick={blurThen(backToMenu)}>Menyu</button>
-      </div>
-    </div>
+    <ResultsView title="Marra!" time={formatTime(finishedAt - startedAt)} earned={coins}>
+      <SoloActions />
+    </ResultsView>
   );
 }

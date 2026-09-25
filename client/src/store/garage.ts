@@ -151,3 +151,12 @@ export function ownCarStats(): CarStats {
   const { levels, tune } = ownUpgrades();
   return carStats(levels, WEATHER_FX[activeSettings().weather].grip, tune);
 }
+
+/**
+ * Garajda sotib olinmagan bo'yoq/neonni sinab ko'rish: 3D mashina vaqtincha shu ko'rinishda chiqadi
+ * (null — saqlangan ko'rinish). Garajdan chiqilganda tozalanadi.
+ */
+export const useLookPreview = create<{ look: CarLook | null; setPreview: (look: CarLook | null) => void }>((set) => ({
+  look: null,
+  setPreview: (look) => set({ look }),
+}));

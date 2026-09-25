@@ -1,195 +1,92 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CARS, ROOM } from '@game/shared';
-import { createRoom, joinRoom, loadName, startSolo } from '../net/session';
-import { useCarChoice } from '../store/carChoice';
-import { useGarage } from '../store/garage';
-import { MAX_BOTS, useMenuChoice } from '../store/raceSettings';
-import { DIFFICULTIES } from '../game/bots/botDriver';
-import { Garage } from './Garage';
+import { useEffect, useState } from 'react';
+import { loadName, saveName } from '../net/session';
 import { Credits } from './Credits';
-import { CarIcon } from './CarIcon';
-import { preloadCar } from '../game/car/carGeometry';
-import { RaceSettingsPicker } from './RaceSettingsPicker';
-import { useNetStore } from '../store/netStore';
-import { QUALITY_LABELS, useQuality, type Quality } from '../store/quality';
+import { TopBar } from './menu/TopBar';
+import { HomeScreen } from './menu/HomeScreen';
+import { CarsScreen } from './menu/CarsScreen';
+import { RaceScreen } from './menu/RaceScreen';
+import { OnlineScreen } from './menu/OnlineScreen';
+import { SettingsScreen } from './menu/SettingsScreen';
+import { GarageScreen } from './menu/GarageScreen';
 
-/** Bosh menyu: ism, yakka o'yin, xona yaratish yoki kod bilan qo'shilish */
+/** Menyu ichidagi ekranlar (Asphalt uslubi: bosh ekran → mashina → trassa → start) */
+export type HubScreen = 'home' | 'cars' | 'race' | 'online' | 'settings' | 'garage';
+/** Mashina/trassa ekranlaridan keyin nima bo'ladi: yakka poyga yoki onlayn xona yaratish */
+export type Flow = 'solo' | 'online';
+
+const TITLES: Record<HubScreen, string> = {
+  home: 'Adventure Racer',
+  cars: 'Mashina tanlash',
+  race: 'Poyga sharoiti',
+  online: 'Onlayn',
+  settings: 'Sozlamalar',
+  garage: 'Garaj',
+};
+
+/** Orqaga bosilganda qaytiladigan ekran */
+const BACK: Record<Exclude<HubScreen, 'home' | 'garage'>, (flow: Flow) => HubScreen> = {
+  cars: (flow) => (flow === 'online' ? 'online' : 'home'),
+  race: () => 'cars',
+  online: () => 'home',
+  settings: () => 'home',
+};
+
+/** Bosh menyu: shaffof "HUD" — orqada 3D mashina shourum kamerasi bilan aylanadi */
 export function Menu() {
-  const connected = useNetStore((s) => s.connected);
-  const busy = useNetStore((s) => s.busy);
-  const error = useNetStore((s) => s.error);
-  const [name, setName] = useState(loadName);
-  const [code, setCode] = useState('');
-  const [garageOpen, setGarageOpen] = useState(false);
+  const [screen, setScreen] = useState<HubScreen>('home');
+  const [flow, setFlow] = useState<Flow>('solo');
+  const [name, setNameState] = useState(loadName);
+  /** Garajga qaysi ekrandan kirilgan — orqaga shu yerga qaytiladi */
+  const [garageFrom, setGarageFrom] = useState<HubScreen>('home');
   const [creditsOpen, setCreditsOpen] = useState(false);
-  const wallet = useGarage((s) => s.wallet);
-  const choice = useMenuChoice();
 
-  const trimmed = name.trim();
-  const canOnline = connected && !busy && trimmed.length > 0;
+  const setName = (v: string) => {
+    setNameState(v);
+    saveName(v.trim());
+  };
+  const back =
+    screen === 'home' ? undefined : () => setScreen(screen === 'garage' ? garageFrom : BACK[screen](flow));
+  const openGarage = () => {
+    setGarageFrom(screen);
+    setScreen('garage');
+  };
 
-  const onJoin = (e: FormEvent) => {
-    e.preventDefault();
-    if (canOnline && code.length === ROOM.CODE_LENGTH) joinRoom(code, trimmed);
+  // Esc — orqaga (Mualliflar ochiq bo'lsa, uni yopish)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Escape') return;
+      if (creditsOpen) setCreditsOpen(false);
+      else back?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const go = (s: HubScreen, f?: Flow) => {
+    if (f) setFlow(f);
+    setScreen(s);
   };
 
   return (
-    <div className="overlay">
-      <div className="panel menu wide">
-        <header>
-          <h1>🏜️ Adventure Racer</h1>
-          <p className="subtitle">4 trassa · F1 halqasi · 4 fasl · yomg'ir va qor</p>
-        </header>
-        <div className="menu-col">
-          <label className="field">
-            <span>Ismingiz</span>
-            <input
-              value={name}
-              maxLength={ROOM.NAME_MAX_LENGTH}
-              placeholder="Masalan, Poygachi"
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
-          </label>
-
-          <div className="divider">mashina</div>
-          <CarPicker />
-          <button className="garage-btn" onClick={() => setGarageOpen(true)}>
-            🔧 Garaj · 🪙 {wallet}
-          </button>
-
-          <div className="divider">yakka</div>
-          <BotPicker />
-          <button className="primary" onClick={startSolo}>
-            Yakka o'ynash{choice.bots > 0 && ` · ${choice.bots} bot bilan`}
-          </button>
-
-          <div className="divider">onlayn</div>
-
-          <button onClick={() => createRoom(trimmed)} disabled={!canOnline}>
-            Xona yaratish
-          </button>
-          <form className="join-row" onSubmit={onJoin}>
-            <input
-              className="code-input"
-              value={code}
-              maxLength={ROOM.CODE_LENGTH}
-              placeholder="KOD"
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-            />
-            <button type="submit" disabled={!canOnline || code.length !== ROOM.CODE_LENGTH}>
-              Qo'shilish
-            </button>
-          </form>
-        </div>
-
-        <div className="menu-col">
-          <RaceSettingsPicker
-            value={{ trackId: choice.trackId, season: choice.season, weather: choice.weather }}
-            onChange={choice.set}
+    <div className="hub">
+      <TopBar title={TITLES[screen]} onBack={back} name={name} onName={setName} />
+      <div className="hub-body" key={screen}>
+        {screen === 'home' && (
+          <HomeScreen
+            go={go}
+            onGarage={openGarage}
+            onCredits={() => setCreditsOpen(true)}
           />
-          <p className="note">Onlayn xona shu sharoit bilan yaratiladi</p>
-          <div className="divider">grafika</div>
-          <QualityPicker />
-        </div>
-
-        {!connected && <p className="note">Server bilan aloqa yo'q — faqat yakka rejim mavjud</p>}
-        {connected && !trimmed && <p className="note">Onlayn o'ynash uchun ism kiriting</p>}
-        {error && <p className="error">{error}</p>}
-        <button className="credits-link" onClick={() => setCreditsOpen(true)}>
-          Mualliflar
-        </button>
+        )}
+        {screen === 'cars' && (
+          <CarsScreen onNext={() => setScreen('race')} onGarage={openGarage} keysEnabled={!creditsOpen} />
+        )}
+        {screen === 'race' && <RaceScreen flow={flow} name={name} />}
+        {screen === 'online' && <OnlineScreen name={name} go={go} />}
+        {screen === 'settings' && <SettingsScreen />}
+        {screen === 'garage' && <GarageScreen />}
       </div>
-      {garageOpen && <Garage onClose={() => setGarageOpen(false)} />}
       {creditsOpen && <Credits onClose={() => setCreditsOpen(false)} />}
-    </div>
-  );
-}
-
-/** Mashina tanlash: 4 ta model, tanlov brauzerda saqlanadi va onlayn xonaga yuboriladi */
-function CarPicker() {
-  const car = useCarChoice((s) => s.car);
-  // Mashinalar ko'p (aylantiriladigan qator) — tanlangani ko'rinib tursin
-  const active = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    // Yangi brauzerlarda scrollIntoView Promise qaytaradi — effect'dan qaytarilmasin (React uni tozalash deb chaqirardi)
-    active.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, []);
-  const setCar = useCarChoice((s) => s.setCar);
-  const look = useGarage((s) => s.look);
-  return (
-    <div className="car-picker" role="radiogroup" aria-label="Mashina">
-      {CARS.map((c) => (
-        <button
-          key={c.id}
-          role="radio"
-          aria-checked={c.id === car}
-          ref={c.id === car ? active : undefined}
-          className={c.id === car ? 'active' : undefined}
-          onClick={() => setCar(c.id)}
-          onPointerEnter={() => preloadCar(c.id)}
-        >
-          <CarIcon color={c.color} shape={c.icon} look={c.id === car ? look : undefined} />
-          <span>{c.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Yakka rejim: botlar soni (0..MAX_BOTS) va qiyinligi */
-function BotPicker() {
-  const bots = useMenuChoice((s) => s.bots);
-  const difficulty = useMenuChoice((s) => s.difficulty);
-  const set = useMenuChoice((s) => s.set);
-  return (
-    <div className="bot-picker">
-      <div className="stepper" aria-label="Botlar soni">
-        <button onClick={() => set({ bots: Math.max(0, bots - 1) })} disabled={bots === 0} aria-label="Kamroq bot">
-          −
-        </button>
-        <span>
-          🤖 <strong>{bots}</strong> bot
-        </span>
-        <button onClick={() => set({ bots: Math.min(MAX_BOTS, bots + 1) })} disabled={bots === MAX_BOTS} aria-label="Ko'proq bot">
-          +
-        </button>
-      </div>
-      <div className="segmented" role="radiogroup" aria-label="Botlar qiyinligi">
-        {DIFFICULTIES.map((d) => (
-          <button
-            key={d.id}
-            role="radio"
-            aria-checked={d.id === difficulty}
-            className={d.id === difficulty ? 'active' : undefined}
-            disabled={bots === 0}
-            onClick={() => set({ difficulty: d.id })}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Grafika sifati: Past / O'rta / Yuqori (sekin kompyuterlar uchun — Past) */
-function QualityPicker() {
-  const quality = useQuality((s) => s.quality);
-  const setQuality = useQuality((s) => s.setQuality);
-  return (
-    <div className="segmented" role="radiogroup" aria-label="Grafika sifati">
-      {(Object.keys(QUALITY_LABELS) as Quality[]).map((q) => (
-        <button
-          key={q}
-          role="radio"
-          aria-checked={q === quality}
-          className={q === quality ? 'active' : undefined}
-          onClick={() => setQuality(q)}
-        >
-          {QUALITY_LABELS[q]}
-        </button>
-      ))}
     </div>
   );
 }

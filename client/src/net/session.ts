@@ -27,7 +27,7 @@ export function loadName(): string {
   }
 }
 
-function saveName(name: string) {
+export function saveName(name: string) {
   try {
     localStorage.setItem(NAME_KEY, name);
   } catch {

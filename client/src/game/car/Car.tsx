@@ -12,7 +12,7 @@ import { useCarModel } from './carGeometry';
 import { Chassis, boostKick, fellOffTrack, forwardSpeed, syncWheels, teleport, uprightness } from './chassis';
 import { useCarChoice } from '../../store/carChoice';
 import { activeTrack } from '../../store/raceSettings';
-import { ownCarStats, useGarage } from '../../store/garage';
+import { ownCarStats, useGarage, useLookPreview } from '../../store/garage';
 import { computeDrive } from './driveLogic';
 import { useVehicleController } from './useVehicleController';
 import { applyDriveCommand } from './vehicleSetup';
@@ -39,9 +39,10 @@ export function Car() {
   // Onlayn rejimda server tasdiqlagan mashina, yakkada — menyudagi tanlov
   const chosen = useCarChoice((s) => s.car);
   const garageLook = useGarage((s) => s.look);
+  const previewLook = useLookPreview((s) => s.look);
   const me = useNetStore((s) => (s.mode === 'online' ? s.room?.players.find((p) => p.id === s.selfId) : undefined));
   const car = me ? me.car : chosen;
-  const look = me ? me.look : garageLook;
+  const look = me ? me.look : (previewLook ?? garageLook);
   const { wheelX, wheelDrop } = useCarModel(car);
   const body = useRef<RapierRigidBody>(null);
   const anchor = useRef<Group>(null);

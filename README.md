@@ -88,8 +88,8 @@ npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara,
 
 ## Mashinalar
 
-Menyuda 19 ta mashinadan biri tanlanadi (`client/public/model/`): Superkar va Sketchfab modellari — Rally, Sport, Kupe,
-Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap va 7 ta giperkar (F1, F1 LM, GT LM, 488 Pista, SF90 XX,
+Menyuda 11 ta mashinadan biri tanlanadi (`client/public/model/`): Superkar va Sketchfab modellari — Rally, Sport, Kupe,
+Sedan va 6 ta giperkar (F1, F1 LM, 488 Pista, SF90 XX,
 Bolide, Tourbillon — import vositasi 78–368 ming uchburchakdan ~15–25 mingga soddalashtirgan). Olib tashlangan eski mashina (Kenney baggilari)
 tanlangan bo'lsa yoki eski klient yuborsa — standart mashina (`DEFAULT_CAR`).
 Tanlangan mashina oldindan yuklanadi, qolganlari (0.3–0.4 MB) — kerak bo'lganda; har mashina o'z
@@ -235,10 +235,9 @@ O'yindagi tashqi modellar va litsenziyalari — `client/src/credits.ts` (o'yinda
 | [Racing Kit](https://kenney.nl/assets/racing-kit) | Kenney | CC0 1.0 | Gran Pri trassasi (plitkalar, tribunalar, pit binolari, chodirlar, daraxtlar) |
 | CAR Model | Ignition Labs | *to'ldirish kerak* | Superkar |
 | Evo Rally Car | *to'ldirish kerak* | *to'ldirish kerak* | Rally |
-| Generic Passenger Car Pack | *to'ldirish kerak* | *to'ldirish kerak* | Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap |
+| Generic Passenger Car Pack | *to'ldirish kerak* | *to'ldirish kerak* | Sport, Kupe, Sedan |
 | [McLaren F1](https://sketchfab.com/3d-models/mclaren-f1-d96ebc208df54311964cad24f83e1656) | Alex.Ka. | CC BY-NC 4.0 | F1 |
 | [1996 McLaren F1 LM - Patrol](https://sketchfab.com/3d-models/1996-mclaren-f1-lm-patrol-fd1ec456a4b04d3c84a1cb065f52d8c1) | Ddiaz Design | CC BY-NC-SA 4.0 | F1 LM |
-| [2006 Ford GT LM Spec II Test Car](https://sketchfab.com/3d-models/2006-ford-gt-lm-spec-ll-test-car-dd6c3effdb1e43ecadace447ccbda68d) | kevin (ケビン) | CC BY 4.0 | GT LM |
 | [Ferrari 488 Pista Widebody](https://sketchfab.com/3d-models/ferrari-488-pista-widebody-16c28f5b3ed24991ac3d1208f4a8bc1f) | Dev365TH | CC BY 4.0 | 488 Pista |
 | [2023 Ferrari SF90 XX Stradale](https://sketchfab.com/3d-models/2023-ferrari-sf90-xx-stradale-2c80c667232544649328cf3589921bcd) | Ddiaz Design | CC BY 4.0 | SF90 XX |
 | [2020 Bugatti Bolide Concept](https://sketchfab.com/3d-models/2020-bugatti-bolide-concept-658684653b154ffba72d5f9511312ca8) | Ddiaz Design | CC BY-NC-SA 4.0 | Bolide |

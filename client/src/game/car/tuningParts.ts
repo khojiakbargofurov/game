@@ -8,6 +8,7 @@ import {
 } from 'three';
 import { findCosmetic, type CosmeticCategory } from '@game/shared';
 import { texturedMaterial, type CarModel } from './carGeometry';
+import { withCarEnv } from './carEnv';
 
 /**
  * Vizual tuning (bo'yoq, neon) uchun materiallar.
@@ -23,12 +24,15 @@ export function cosmeticMaterial(cat: CosmeticCategory, id: string | null): Mesh
   const key = `${item.color}:${item.metallic ? 1 : 0}`;
   let m = standardCache.get(key);
   if (!m) {
-    m = new MeshStandardMaterial({
-      color: item.color,
-      flatShading: true,
-      metalness: item.metallic ? 0.75 : 0.05,
-      roughness: item.metallic ? 0.28 : 0.6,
-    });
+    m = withCarEnv(
+      new MeshStandardMaterial({
+        color: item.color,
+        flatShading: true,
+        metalness: item.metallic ? 0.75 : 0.05,
+        roughness: item.metallic ? 0.28 : 0.6,
+      }),
+      item.metallic ? 1 : 0.6,
+    );
     standardCache.set(key, m);
   }
   return m;
@@ -36,7 +40,7 @@ export function cosmeticMaterial(cat: CosmeticCategory, id: string | null): Mesh
 
 /**
  * Teksturadagi "bo'yoq" pikseli: kuzov qismidagi eng ko'p uchraydigan to'yingan rang tusi (hue) ± PAINT_HUE_RANGE —
- * har mashinada avtomatik aniqlanadi (superkar — sariq, sedan — sariq-yashil, offroad — to'q yashil...)
+ * har mashinada avtomatik aniqlanadi (superkar — sariq, sedan — sariq-yashil, sport — qizil...)
  */
 const PAINT_HUE_RANGE = 22 / 360;
 const PAINT_MIN_SAT = 0.3;

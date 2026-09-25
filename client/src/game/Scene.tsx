@@ -30,6 +30,7 @@ import { EngineAudio } from '../audio/EngineAudio';
 import { PerfStats } from './PerfStats';
 import { WorldReady } from './WorldReady';
 import { Weather } from './Weather';
+import { initCarEnv } from './car/carEnv';
 
 /** URL'da ?debug bo'lsa fizika colliderlari ko'rsatiladi */
 const DEBUG = new URLSearchParams(location.search).has('debug');
@@ -41,6 +42,13 @@ function CameraFar({ far }: { far: number }) {
     camera.far = far;
     camera.updateProjectionMatrix();
   }, [camera, far]);
+  return null;
+}
+
+/** Mashinalar uchun atrof-muhit aksini renderer tayyor bo'lganda yasash (carEnv.ts) */
+function CarEnv() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => initCarEnv(gl), [gl]);
   return null;
 }
 
@@ -79,6 +87,7 @@ export default function Scene() {
       <color attach="background" args={[sky]} />
       <fog attach="fog" args={[fog, LIGHTING.FOG_NEAR * fx.fogScale, fogFar]} />
       <Lights />
+      <CarEnv />
       {/* Rapier WASM asinxron yuklanadi */}
       <Suspense fallback={null}>
         {/* key — trassa yoki fasl o'zgarsa butun dunyo (relyef, colliderlar) qaytadan quriladi */}

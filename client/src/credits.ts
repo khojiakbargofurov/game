@@ -24,7 +24,7 @@ export const CREDITS: Credit[] = [
   { what: 'Superkar', title: 'CAR Model', author: 'Ignition Labs', license: '', url: '' },
   { what: 'Rally', title: 'Evo Rally Car', author: '', license: '', url: '' },
   {
-    what: 'Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap',
+    what: 'Sport, Kupe, Sedan',
     title: 'Generic Passenger Car Pack',
     author: '',
     license: '',
@@ -43,13 +43,6 @@ export const CREDITS: Credit[] = [
     author: 'Ddiaz Design',
     license: 'CC BY-NC-SA 4.0',
     url: 'https://sketchfab.com/3d-models/1996-mclaren-f1-lm-patrol-fd1ec456a4b04d3c84a1cb065f52d8c1',
-  },
-  {
-    what: 'GT LM',
-    title: '2006 Ford GT LM Spec II Test Car',
-    author: 'kevin (ケビン)',
-    license: 'CC BY 4.0',
-    url: 'https://sketchfab.com/3d-models/2006-ford-gt-lm-spec-ll-test-car-dd6c3effdb1e43ecadace447ccbda68d',
   },
   {
     what: '488 Pista',

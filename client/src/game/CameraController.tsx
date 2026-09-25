@@ -24,6 +24,8 @@ let prevYaw = 0;
 let roll = 0;
 let lastBoostUntil = 0;
 let time = 0;
+/** Menyudagi shourum aylanishi burchagi (mashina oldidan hisoblanadi) */
+let showroomAngle: number = CAMERA.SHOWROOM.START_ANGLE;
 
 /** Framerate'ga bog'liq bo'lmagan lerp koeffitsiyenti: 1 - e^(-k·dt) */
 const damp = (k: number, dt: number) => 1 - Math.exp(-k * dt);
@@ -110,7 +112,10 @@ export function CameraController() {
     const mode = useCameraStore.getState().mode;
     const cfg = CAMERA.MODES[mode];
     const game = useGameStore.getState();
-    const intro = game.phase === 'countdown' && useNetStore.getState().screen === 'race';
+    const screen = useNetStore.getState().screen;
+    const intro = game.phase === 'countdown' && screen === 'race';
+    // Menyu va xona: kamera mashina atrofida sekin aylanadi (Asphalt'dagi garaj kabi), sichqoncha bilan buriladi
+    const showroom = screen !== 'race';
 
     // Mashina oldi yo'nalishini XZ tekisligiga proyeksiya qilamiz.
     // Birinchi kadr yoki respawn (katta sakrash) — kamera darhol joyiga qo'yiladi
@@ -133,7 +138,19 @@ export function CameraController() {
     const yaw = camFx.orbitYaw + (input.lookBack ? Math.PI : 0);
 
     let sharpness: number = cfg.sharpness;
-    if (intro) {
+    if (showroom) {
+      const { SPEED, RADIUS, HEIGHT, LOOK_Y } = CAMERA.SHOWROOM;
+      // Tortilgan burchak doimiy aylanishga qo'shiladi (qaytib ketmaydi)
+      showroomAngle = wrap(showroomAngle + SPEED * dt + camFx.orbitYaw);
+      camFx.orbitYaw = 0;
+      const [back, up] = pitched(-RADIUS, HEIGHT, camFx.orbitPitch);
+      local.copy(heading).applyAxisAngle(UP, showroomAngle);
+      desired.copy(carTarget.position).addScaledVector(local, -back);
+      desired.y += up;
+      look.copy(carTarget.position);
+      look.y += LOOK_Y;
+      sharpness = 6;
+    } else if (intro) {
       // Old tomondan orqaga aylanish: countdown boshida START_ANGLE, oxirida 0 (mashina orqasida)
       const left = clamp((game.countdownEndsAt - performance.now()) / (ROOM.COUNTDOWN_SECONDS * 1000), 0, 1);
       local.copy(heading).negate().applyAxisAngle(UP, CAMERA.INTRO.START_ANGLE * left * left);
@@ -172,11 +189,11 @@ export function CameraController() {
     smoothLook.lerp(look, a);
 
     // Orbit: kapotda yaw look'ga kiritilgan, qolgan rejimlarda kamera mashina atrofida buriladi
-    const orbit = mode === 'hood' || intro ? 0 : yaw;
+    const orbit = mode === 'hood' || intro || showroom ? 0 : yaw;
     view.copy(basePos).sub(carTarget.position).applyAxisAngle(UP, orbit).add(carTarget.position);
     local.copy(smoothLook).sub(carTarget.position).applyAxisAngle(UP, orbit).add(carTarget.position);
     // Kamera yer ostiga kirib ketmasin
-    if (mode !== 'hood' || intro) {
+    if (mode !== 'hood' || intro || showroom) {
       view.y = Math.max(view.y, activeTrack().terrainHeight(view.x, view.z) + 1.2);
     }
 
@@ -201,14 +218,15 @@ export function CameraController() {
     const carYaw = Math.atan2(carForward.x, carForward.z);
     const yawRate = snap || dt === 0 ? 0 : wrap(carYaw - prevYaw) / dt;
     prevYaw = carYaw;
-    const targetRoll = intro ? 0 : clamp(yawRate * CAMERA.ROLL.FACTOR * Math.min(speedRatio, 1), -CAMERA.ROLL.MAX, CAMERA.ROLL.MAX);
+    const targetRoll = intro || showroom ? 0 : clamp(yawRate * CAMERA.ROLL.FACTOR * Math.min(speedRatio, 1), -CAMERA.ROLL.MAX, CAMERA.ROLL.MAX);
     roll += (targetRoll - roll) * damp(CAMERA.ROLL.SHARPNESS, dt);
     camera.rotateZ(roll + wobble(ft, 4) * s * CAMERA.SHAKE.MAX_ROLL);
 
     // Tezlik hissi: tezlik oshgani sari FOV biroz kengayadi, boost/nitro paytida yana
     const cam = camera as PerspectiveCamera;
-    const fov =
-      CAMERA.FOV + cfg.fov + CAMERA.SPEED_FOV_BOOST * speedRatio + (carTarget.boosting ? CAMERA.BOOST_FOV : 0);
+    const fov = showroom
+      ? CAMERA.FOV + CAMERA.SHOWROOM.FOV
+      : CAMERA.FOV + cfg.fov + CAMERA.SPEED_FOV_BOOST * speedRatio + (carTarget.boosting ? CAMERA.BOOST_FOV : 0);
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov += (fov - cam.fov) * damp(4, dt);
       cam.updateProjectionMatrix();

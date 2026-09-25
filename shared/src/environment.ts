@@ -73,6 +73,10 @@ const OVERRIDES: Record<Season, Partial<Palette>> = {
     roadCanyon: '#a8927e',
     roadRuins: '#b3aa9c',
     roadEdge: '#e6ecf1',
+    // Qishki asfalt: tuz va qor changidan oqarib ketgan
+    asphaltForest: '#6c7178',
+    asphaltCanyon: '#74716d',
+    asphaltRuins: '#7a7874',
     water: '#8fb7c9',
     leaves: '#e9f0f5',
     leavesLight: '#ffffff',

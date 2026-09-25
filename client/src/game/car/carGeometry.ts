@@ -17,6 +17,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { useGLTF } from '@react-three/drei';
 import { CAR, CARS, type CarId } from '@game/shared';
 import { useCarChoice } from '../../store/carChoice';
+import { withCarEnv } from './carEnv';
 
 /**
  * Mashina modellari (client/public/model/, ro'yxat: CARS) — teksturali (rang teksturadan, uv saqlanadi; bir nechta
@@ -271,15 +272,19 @@ export function useCarModel(car: CarId): CarModel {
 export const preloadCar = (car: CarId) => useGLTF.preload(modelUrl(car));
 preloadCar(useCarChoice.getState().car);
 
-export const bodyMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
-export const wheelMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
+export const bodyMaterial = withCarEnv(new MeshStandardMaterial({ vertexColors: true, flatShading: true }), 0.5);
+export const wheelMaterial = withCarEnv(new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }), 0.3);
 
 /** Teksturali model materiali: tekstura × vertex rang (oyna qismlari — qora vertex rang) */
 export function texturedMaterial(map: Texture, metallic = false) {
-  return new MeshStandardMaterial({
-    map,
-    vertexColors: true,
-    metalness: metallic ? 0.75 : 0.3,
-    roughness: metallic ? 0.28 : 0.45,
-  });
+  // Atrof-muhit aksi (carEnv): lak yaltiraydi, metall bo'yoq haqiqiy metalldek; aksisiz ular qorayib chiqardi
+  return withCarEnv(
+    new MeshStandardMaterial({
+      map,
+      vertexColors: true,
+      metalness: metallic ? 0.75 : 0.3,
+      roughness: metallic ? 0.28 : 0.45,
+    }),
+    metallic ? 1 : 0.7,
+  );
 }
