@@ -24,7 +24,7 @@ const geo = await time('Relyef: 63k nuqta sampleTerrain', () => {
   const g = new PlaneGeometry(WORLD.TERRAIN_SIZE, WORLD.TERRAIN_SIZE, WORLD.TERRAIN_SEGMENTS, WORLD.TERRAIN_SEGMENTS);
   g.rotateX(-Math.PI / 2);
   const pos = g.attributes.position;
-  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
+  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0, alpine: 0, city: 0 };
   for (let i = 0; i < pos.count; i++) pos.setY(i, sampleTerrain(pos.getX(i), pos.getZ(i), t).height);
   return g;
 });

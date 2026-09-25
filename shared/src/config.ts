@@ -262,6 +262,17 @@ export const COLORS = {
   roadLine: '#f1f1ec',
   kerbRed: '#c4232c',
   kerbWhite: '#eceef0',
+  /** Alp tog'i: qoya qatlamlari, cho'qqilardagi qor, yonbag'ir o'tlog'i, jarlik to'sig'i */
+  alpineRock: '#8b8d92',
+  alpineRockDark: '#6a6d73',
+  alpineGrass: '#6f8f4a',
+  snow: '#f1f4f7',
+  asphaltAlpine: '#3a3c41',
+  guardrail: '#c4c8ce',
+  /** Tungi shahar: ko'cha atrofidagi maydon, trotuar, asfalt */
+  cityGround: '#34363d',
+  sidewalk: '#8e9098',
+  asphaltCity: '#2a2c32',
   wood: '#8a5a34',
   woodDark: '#5e3c22',
   crystal: '#5ff2ff',

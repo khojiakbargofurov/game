@@ -9,8 +9,10 @@ const TRACK_BG: Record<TrackId, string> = {
   mountain: 'linear-gradient(135deg, #4a5a78, #b9c3d6)',
   lake: 'linear-gradient(135deg, #1d6f8a, #6cc3c9)',
   circuit: 'linear-gradient(135deg, #8a1d2a, #e0572b)',
+  alpine: 'linear-gradient(135deg, #3d5a80, #e8eef4)',
+  city: 'linear-gradient(135deg, #1a1040, #ff2fa8)',
 };
-const TRACK_ICON: Record<TrackId, string> = { adventure: '🌲', mountain: '⛰️', lake: '🌊', circuit: '🏎️' };
+const TRACK_ICON: Record<TrackId, string> = { adventure: '🌲', mountain: '⛰️', lake: '🌊', circuit: '🏎️', alpine: '🏔️', city: '🌃' };
 
 /** Qiya segmentli tanlov (fasl, ob-havo, qiyinlik, grafika...) */
 export function Segmented<T extends string>({

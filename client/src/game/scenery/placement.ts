@@ -29,7 +29,7 @@ export function generatePlacements(track: Track): Placement[] {
   const { BRIDGE, TUNNEL, LAKE, ROUTE_LENGTH, roadHalfWidth, sampleTerrain, trackPoint } = track;
   const rng = createRng(2024);
   const out: Placement[] = [];
-  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
+  const t: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0, alpine: 0, city: 0 };
 
   for (let attempt = 0; attempt < 5200; attempt++) {
     const s = rng() * ROUTE_LENGTH;
@@ -57,6 +57,12 @@ export function generatePlacements(track: Track): Placement[] {
       // Plitkali trassada yaqin atrof (paddok, tribunalar, kit daraxtlari) — KitTrack'da
       if (clearance < (track.TILE_SIZE ? 110 : 45)) continue;
       kind = r < 0.3 ? 'broadleaf' : r < 0.5 ? 'pine' : null;
+    } else if (t.city > 0.5) {
+      continue; // shaharda — binolar (City.tsx)
+    } else if (t.alpine > 0.5) {
+      // Alp: pastda qarag'ay o'rmoni, yuqorida siyrak qoyalar, qor chizig'idan tepada — faqat qoyalar
+      if (t.height > 90) kind = r < 0.25 ? 'rock' : null;
+      else kind = r < 0.6 ? 'pine' : r < 0.78 ? 'rock' : null;
     } else kind = r < 0.25 ? 'broadleaf' : r < 0.45 ? 'rock' : r < 0.52 ? 'pine' : null;
     if (!kind) continue;
 

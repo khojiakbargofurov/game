@@ -16,6 +16,7 @@ import { ownCarStats, useGarage, useLookPreview } from '../../store/garage';
 import { computeDrive } from './driveLogic';
 import { useVehicleController } from './useVehicleController';
 import { applyDriveCommand } from './vehicleSetup';
+import { Headlights } from './Headlights';
 
 /** Boshqaruv qulflanganda (menyu, xona) — hech qanday tugma bosilmagan */
 const IDLE_INPUT = { forward: false, backward: false, left: false, right: false, handbrake: false };
@@ -147,6 +148,7 @@ export function Car() {
   return (
     <Chassis body={body} wheels={wheels} car={car} look={look} initial={initial}>
       <group ref={anchor} />
+      <Headlights />
     </Chassis>
   );
 }

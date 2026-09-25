@@ -1,4 +1,6 @@
 import { ADVENTURE } from './adventure';
+import { ALPINE } from './alpine';
+import { CITY } from './city';
 import { CIRCUIT } from './circuit';
 import { createTrack } from './createTrack';
 import { LAKE } from './lake';
@@ -10,9 +12,9 @@ export { createTrack } from './createTrack';
 export * from './tiles';
 
 /** Menyudagi tartibda */
-export const TRACK_DEFS: readonly TrackDef[] = [ADVENTURE, MOUNTAIN, LAKE, CIRCUIT];
+export const TRACK_DEFS: readonly TrackDef[] = [ADVENTURE, MOUNTAIN, LAKE, CIRCUIT, ALPINE, CITY];
 
-export type TrackId = 'adventure' | 'mountain' | 'lake' | 'circuit';
+export type TrackId = 'adventure' | 'mountain' | 'lake' | 'circuit' | 'alpine' | 'city';
 export const DEFAULT_TRACK: TrackId = 'adventure';
 
 export function isTrackId(v: unknown): v is TrackId {

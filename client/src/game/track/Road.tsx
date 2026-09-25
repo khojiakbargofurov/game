@@ -95,7 +95,14 @@ class Mesher {
  */
 function buildRoadGeometry({ ROUTE, BRIDGE, roadHalfWidth, zoneWeights }: Track, C: Palette) {
   const { xs, ys, zs, txs, tzs, count } = ROUTE;
-  const zone = { forest: new Color(C.asphaltForest), canyon: new Color(C.asphaltCanyon), ruins: new Color(C.asphaltRuins) };
+  const zone = {
+    forest: new Color(C.asphaltForest),
+    canyon: new Color(C.asphaltCanyon),
+    ruins: new Color(C.asphaltRuins),
+    alpine: new Color(C.asphaltAlpine),
+    city: new Color(C.asphaltCity),
+  };
+  const ZONES = ['forest', 'canyon', 'ruins', 'alpine', 'city'] as const;
   const edge = new Color(C.roadEdge);
   const kerb = [new Color(C.kerbRed), new Color(C.kerbWhite)];
   const line = new Color(C.roadLine);
@@ -134,11 +141,12 @@ function buildRoadGeometry({ ROUTE, BRIDGE, roadHalfWidth, zoneWeights }: Track,
       const hw0 = roadHalfWidth(ps);
       const hw1 = roadHalfWidth(s);
       const w = zoneWeights(s);
-      c.setRGB(
-        zone.forest.r * w.forest + zone.canyon.r * w.canyon + zone.ruins.r * w.ruins,
-        zone.forest.g * w.forest + zone.canyon.g * w.canyon + zone.ruins.g * w.ruins,
-        zone.forest.b * w.forest + zone.canyon.b * w.canyon + zone.ruins.b * w.ruins,
-      );
+      c.setRGB(0, 0, 0);
+      for (const k of ZONES) {
+        c.r += zone[k].r * w[k];
+        c.g += zone[k].g * w[k];
+        c.b += zone[k].b * w[k];
+      }
       // Asfalt
       surface.quad(at(prev, hw0, 0, ps), at(prev, -hw0, 0, ps), at(i, hw1, 0, s), at(i, -hw1, 0, s), c);
       // Yelkalar: burilishda — biroz ko'tarilgan qizil-oq bordyur (har 2 m rang almashadi), aks holda — oddiy chekka
@@ -184,9 +192,11 @@ export function Road() {
 function RoadMesh({ track }: { track: Track }) {
   const palette = usePalette();
   const { weather } = useActiveSettings();
+  const night = !!track.def.env?.night;
   const { surface, lines } = useMemo(() => buildRoadGeometry(track, palette), [track, palette]);
   const map = asphalt();
-  const roughness = ROUGHNESS[weather];
+  // Tungi shahar asfalti biroz nam — fara va chiroqlarni aks ettiradi
+  const roughness = night ? Math.min(ROUGHNESS[weather], 0.5) : ROUGHNESS[weather];
   return (
     <>
       <mesh geometry={surface} receiveShadow>

@@ -2,14 +2,32 @@ import type { Vec3 } from '../types';
 import type { ControlPoint, NearestResult, Route, RouteFrame } from '../route';
 import type { TileLayoutDef, TilePiece } from './tiles';
 
-/** circuit — F1 halqasi: keng asfalt, tekis atrof, kerblar */
-export type ZoneName = 'forest' | 'canyon' | 'ruins' | 'circuit';
+/**
+ * circuit — F1 halqasi: keng asfalt, tekis atrof, kerblar;
+ * alpine — tog' yonbag'riga o'yilgan yo'l: tepa tomonda qoya devori, past tomonda jarlik (to'siq bilan);
+ * city — tungi shahar: tekis ko'chalar, trotuar, binolar
+ */
+export type ZoneName = 'forest' | 'canyon' | 'ruins' | 'circuit' | 'alpine' | 'city';
 
 export interface ZoneWeights {
   forest: number;
   canyon: number;
   ruins: number;
   circuit: number;
+  alpine: number;
+  city: number;
+}
+
+/** Trassa zonasi: `end` — tugaydigan `s` */
+export interface ZoneDef {
+  type: ZoneName;
+  end: number;
+}
+
+/** Trassa muhiti: tun (qorong'i osmon, fara, yonib turgan derazalar) va uzoq fon siluetlari */
+export interface TrackEnv {
+  night?: boolean;
+  skyline?: 'peaks' | 'city';
 }
 
 export interface SpawnPoint {
@@ -95,7 +113,7 @@ export interface TrackDef {
   seed: number;
   control: readonly ControlPoint[];
   /** Zonalar ketma-ketligi; `end` — zona tugaydigan `s` (oxirgisi Infinity) */
-  zones: readonly { type: ZoneName; end: number }[];
+  zones: readonly ZoneDef[];
   /** Checkpointlar `s` qiymatlari (marra — avtomatik, oxiridan 10 m oldin) */
   checkpoints: readonly number[];
   boosts: readonly number[];
@@ -116,6 +134,24 @@ export interface TrackDef {
   tiles?: TileLayoutDef;
   /** Kit jihozlari (tribunalar, pit binolari, chodirlar, daraxtlar...) — marshrutga nisbatan joylashadi */
   props?: readonly PropDef[];
+  env?: TrackEnv;
+  landform?: LandformDef;
+}
+
+/**
+ * Alpine zonasi uchun tog' yuzasi. Yuza marshrut balandliklari va `anchors` nuqtalaridan keskin (d⁻⁴) og'irlikli
+ * o'rtacha bilan quriladi: har serpantin bo'lagi o'z pog'onasida, bo'laklar orasida — tik qoya; `anchors` (masalan,
+ * pastdagi vodiy) yo'l chetida jarlik hosil qiladi. `bumps` — alohida cho'qqilar (tunnel ustidagi tog').
+ * Yo'l yuzani kesib o'tadi: yuzadan pastda — qoya devori, balandda — jarlik.
+ */
+export interface LandformDef {
+  anchors: readonly (readonly [x: number, z: number, height: number])[];
+  /**
+   * Yo'l yonidagi qirralar: [from, to] uchastkada `side` tomonda (1 = chap, -1 = o'ng) yo'ldan `offset` m narida
+   * yuza yo'ldan `dy` m farq qiladi (musbat — qoya devori, manfiy — jarlik). Devor/jarlik yo'lga yaqin bo'lishi uchun
+   */
+  edges?: readonly { from: number; to: number; side: 1 | -1; offset: number; dy: number }[];
+  bumps?: readonly { x: number; z: number; radius: number; height: number }[];
 }
 
 /**

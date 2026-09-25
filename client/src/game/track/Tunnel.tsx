@@ -92,7 +92,9 @@ export function Tunnel() {
 
 function TunnelImpl({ track, tunnel: TUNNEL }: { track: Track; tunnel: TunnelDef }) {
   const { roadHalfWidth, routeAt } = track;
-  const rockColor = usePalette().canyonB;
+  const palette = usePalette();
+  // Alp tunneli — kulrang granit, kanyondagisi — qizil qoya
+  const rockColor = track.zoneAt(TUNNEL.start) === 'alpine' ? palette.alpineRockDark : palette.canyonB;
   const { shell, walls, crystals } = useMemo(() => {
     const walls: { position: [number, number, number]; yaw: number }[] = [];
     for (let s = TUNNEL.start; s < TUNNEL.end; s += WALL_SEGMENT) {

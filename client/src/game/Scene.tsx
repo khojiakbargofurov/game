@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Color, type PerspectiveCamera } from 'three';
-import { CAMERA, LIGHTING, WORLD } from '@game/shared';
+import { CAMERA, LIGHTING, WORLD, getTrack } from '@game/shared';
 import { useQuality, QUALITY_PRESETS } from '../store/quality';
 import { useActiveSettings, usePalette, useWeatherFx } from '../store/raceSettings';
 import { Lights } from './Lights';
@@ -30,6 +30,9 @@ import { EngineAudio } from '../audio/EngineAudio';
 import { PerfStats } from './PerfStats';
 import { WorldReady } from './WorldReady';
 import { Weather } from './Weather';
+import { Skyline } from './Skyline';
+import { Guardrail } from './track/Guardrail';
+import { City } from './track/City';
 import { initCarEnv } from './car/carEnv';
 
 /** URL'da ?debug bo'lsa fizika colliderlari ko'rsatiladi */
@@ -52,6 +55,9 @@ function CarEnv() {
   return null;
 }
 
+/** Tungi trassa osmoni va tumani */
+const NIGHT = { sky: '#0a0f26', fog: '#141a3a' } as const;
+
 /** default export — App.tsx da lazy() bilan yuklanadi (menyu 3D dunyodan oldin chiqadi) */
 export default function Scene() {
   const quality = useQuality((s) => s.quality);
@@ -63,12 +69,16 @@ export default function Scene() {
 
   // Fasl + ob-havo: osmon/tuman rangi ob-havo rangiga aralashtiriladi, yomg'ir/qorda tuman yaqinroq
   const { trackId, season } = useActiveSettings();
+  const env = getTrack(trackId).def.env;
   const palette = usePalette();
   const fx = useWeatherFx();
+  const night = !!env?.night;
   const { sky, fog } = useMemo(() => {
-    const mix = (c: string) => (fx.tint ? new Color(c).lerp(new Color(fx.tint), fx.tintAmount) : new Color(c));
-    return { sky: mix(palette.sky), fog: mix(palette.fog) };
-  }, [palette, fx]);
+    // Tunda — to'q ko'k-binafsha osmon; ob-havo rangi ozroq aralashadi (yomg'irli tun ham qorong'i qolsin)
+    const tintAmount = night ? fx.tintAmount * 0.2 : fx.tintAmount;
+    const mix = (c: string) => (fx.tint ? new Color(c).lerp(new Color(fx.tint), tintAmount) : new Color(c));
+    return night ? { sky: mix(NIGHT.sky), fog: mix(NIGHT.fog) } : { sky: mix(palette.sky), fog: mix(palette.fog) };
+  }, [palette, fx, night]);
   const fogFar = preset.fogFar * fx.fogScale;
 
   return (
@@ -101,6 +111,8 @@ export default function Scene() {
           <Ruins />
           <KitTrack />
           <Boulders />
+          <Guardrail />
+          <City />
           {/* Mashinalar o'z Suspense'ida: model yuklanayotganda dunyo yashirilmaydi */}
           <Suspense fallback={null}>
             <Car />
@@ -111,6 +123,7 @@ export default function Scene() {
         </Physics>
       </Suspense>
       <Road />
+      {env?.skyline && <Skyline kind={env.skyline} fog={fog} />}
       <Checkpoints />
       <Coins />
       <Boosts />

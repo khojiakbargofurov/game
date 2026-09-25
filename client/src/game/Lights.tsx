@@ -4,7 +4,7 @@ import type { DirectionalLight } from 'three';
 import { LIGHTING } from '@game/shared';
 import { carTarget } from './carTarget';
 import { usePreset } from '../store/quality';
-import { usePalette, useWeatherFx } from '../store/raceSettings';
+import { usePalette, useTrack, useWeatherFx } from '../store/raceSettings';
 
 const [SX, SY, SZ] = LIGHTING.SUN_POSITION;
 
@@ -19,6 +19,8 @@ export function Lights() {
   // Fasl ranglari; bulutli (yomg'ir/qor) havoda quyosh xiraroq
   const COLORS = usePalette();
   const { sunScale } = useWeatherFx();
+  // Tunda quyosh o'rniga xira ko'kish oy nuri, osmon yorug'ligi ham past (yorug'lik — derazalar, neon, fonarlar, fara)
+  const night = !!useTrack().def.env?.night;
 
   useFrame(() => {
     const light = sun.current;
@@ -32,11 +34,13 @@ export function Lights() {
   const e = LIGHTING.SHADOW_EXTENT;
   return (
     <>
-      <hemisphereLight args={[COLORS.hemiSky, COLORS.hemiGround, LIGHTING.HEMI_INTENSITY]} />
+      <hemisphereLight
+        args={night ? ['#5566aa', '#2a2236', 1.1] : [COLORS.hemiSky, COLORS.hemiGround, LIGHTING.HEMI_INTENSITY]}
+      />
       <directionalLight
         ref={sun}
-        color={COLORS.sun}
-        intensity={LIGHTING.SUN_INTENSITY * sunScale}
+        color={night ? '#9db2ff' : COLORS.sun}
+        intensity={LIGHTING.SUN_INTENSITY * sunScale * (night ? 0.22 : 1)}
         castShadow={shadows}
         // key — o'lcham o'zgarsa shadow map qayta yaratiladi
         key={shadowMapSize}

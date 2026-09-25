@@ -11,7 +11,10 @@ const smoothstep = (a: number, b: number, x: number) => {
 
 /** Zonalar orasidagi silliq o'tish uzunligi (m) */
 const ZONE_BLEND = 30;
-const HALF_WIDTH: Record<ZoneName, number> = { forest: 7, canyon: 5, ruins: 6, circuit: 8 };
+const HALF_WIDTH: Record<ZoneName, number> = { forest: 7, canyon: 5, ruins: 6, circuit: 8, alpine: 6.5, city: 8 };
+
+/** Bo'sh zona og'irliklari (yangi obyekt) */
+const noWeights = (): ZoneWeights => ({ forest: 0, canyon: 0, ruins: 0, circuit: 0, alpine: 0, city: 0 });
 
 /** Trassa ta'rifidan to'liq trassa: marshrut, zonalar, relyef, checkpointlar, tangalar */
 export function createTrack(def: TrackDef): Track {
@@ -32,8 +35,8 @@ export function createTrack(def: TrackDef): Track {
 
   // ─── Zonalar ───
   /** Zonalar orasida silliq o'tish uchun og'irliklar (yig'indisi = 1) */
-  function zoneWeights(s: number, out: ZoneWeights = { forest: 0, canyon: 0, ruins: 0, circuit: 0 }): ZoneWeights {
-    out.forest = out.canyon = out.ruins = out.circuit = 0;
+  function zoneWeights(s: number, out: ZoneWeights = noWeights()): ZoneWeights {
+    out.forest = out.canyon = out.ruins = out.circuit = out.alpine = out.city = 0;
     const b = ZONE_BLEND / 2;
     let enter = 1; // shu zonaga kirish koeffitsiyenti (oldingi chegaradan o'tganlik)
     for (let k = 0; k < def.zones.length; k++) {
@@ -51,14 +54,19 @@ export function createTrack(def: TrackDef): Track {
   }
 
   // ─── Yo'l kengligi va maxsus uchastkalar ───
-  const tmpW: ZoneWeights = { forest: 0, canyon: 0, ruins: 0, circuit: 0 };
+  const tmpW: ZoneWeights = noWeights();
 
   /** Yo'lning yarim kengligi `s` nuqtada */
   function roadHalfWidth(s: number): number {
     if (TILE_SIZE) return TILE_ROAD_HALF * TILE_SIZE;
     const w = zoneWeights(s, tmpW);
     let hw =
-      w.forest * HALF_WIDTH.forest + w.canyon * HALF_WIDTH.canyon + w.ruins * HALF_WIDTH.ruins + w.circuit * HALF_WIDTH.circuit;
+      w.forest * HALF_WIDTH.forest +
+      w.canyon * HALF_WIDTH.canyon +
+      w.ruins * HALF_WIDTH.ruins +
+      w.circuit * HALF_WIDTH.circuit +
+      w.alpine * HALF_WIDTH.alpine +
+      w.city * HALF_WIDTH.city;
     // Ko'prik va tor yo'lakda yo'l torayadi (10 m davomida silliq)
     if (BRIDGE) {
       const k = smoothstep(BRIDGE.start - 12, BRIDGE.start - 2, s) * (1 - smoothstep(BRIDGE.end + 2, BRIDGE.end + 12, s));
@@ -88,6 +96,34 @@ export function createTrack(def: TrackDef): Track {
     };
   }
 
+  // ─── Alpine tog' yuzasi ───
+  const LF = def.landform;
+  const lfPts: number[] = [];
+  if (LF) {
+    for (let i = 0; i < ROUTE.count; i += 4) lfPts.push(ROUTE.xs[i], ROUTE.zs[i], ROUTE.ys[i]);
+    for (const [x, z, y] of LF.anchors) lfPts.push(x, z, y);
+    for (const e of LF.edges ?? []) {
+      for (let s = e.from; s <= e.to; s += 8) {
+        const p = trackPoint(s, e.side * e.offset, e.dy).position;
+        lfPts.push(p[0], p[2], p[1]);
+      }
+    }
+  }
+  /** Tog' yuzasi balandligi: yaqin nuqtalar ustun (d⁻⁴) — pog'onalar orasida tik qoya */
+  function landHeight(x: number, z: number) {
+    let sw = 0;
+    let sy = 0;
+    for (let k = 0; k < lfPts.length; k += 3) {
+      const d2 = (x - lfPts[k]) ** 2 + (z - lfPts[k + 1]) ** 2 + 64;
+      const w = 1 / (d2 * d2);
+      sw += w;
+      sy += w * lfPts[k + 2];
+    }
+    let h = sy / sw;
+    for (const b of LF?.bumps ?? []) h += b.height * Math.exp(-((x - b.x) ** 2 + (z - b.z) ** 2) / (b.radius * b.radius));
+    return h;
+  }
+
   // ─── Relyef ───
   const near: NearestResult = { s: 0, dist: 0, lateral: 0, roadY: 0 };
   const seed = WORLD.SEED + def.seed;
@@ -102,7 +138,7 @@ export function createTrack(def: TrackDef): Track {
   function sampleTerrain(
     x: number,
     z: number,
-    out: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 },
+    out: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, ...noWeights() },
   ): TerrainSample {
     const n = nearestOnRoute(x, z, near);
     const hw = roadHalfWidth(n.s);
@@ -135,6 +171,13 @@ export function createTrack(def: TrackDef): Track {
       const far = TILE_SIZE ? smoothstep(hw + 90, hw + 170, d) : smoothstep(hw + 30, hw + 90, d);
       h += w.circuit * ((hills - 0.4) * 8 + (detail - 0.5)) * far;
     }
+    if (w.alpine > 0 && LF) {
+      // Yo'l tog' yuzasini kesib o'tadi: yuzadan pastda — qoya devori, yuzadan balandda — jarlik (qiyalik bilan).
+      // Tunnel ustida tog' qo'shimcha ko'tariladi
+      const ground = landHeight(x, z) + (hills - 0.5) * 8 + (detail - 0.5) * 3 + 18 * tunnelFactor(n.s);
+      h += w.alpine * (ground - road) * smoothstep(hw + 1.5, hw + 14, d);
+    }
+    // city: ko'chalar, trotuar va bino maydonlari butunlay tekis (binolar — client'dagi City.tsx)
     if (BRIDGE) h -= BRIDGE.gorgeDepth * gorgeFactor(n.s);
     if (LAKE) {
       // Qirg'oq yo'ldan kamida 6 m uzoqda boshlanadi — yo'l o'zi hech qachon botmaydi
@@ -151,7 +194,7 @@ export function createTrack(def: TrackDef): Track {
     return out;
   }
 
-  const tmp: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, forest: 0, canyon: 0, ruins: 0, circuit: 0 };
+  const tmp: TerrainSample = { height: 0, s: 0, dist: 0, roadY: 0, halfWidth: 0, ...noWeights() };
   const terrainHeight = (x: number, z: number) => sampleTerrain(x, z, tmp).height;
 
   // ─── Start, checkpointlar, tangalar, boostlar ───

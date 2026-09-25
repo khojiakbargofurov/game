@@ -1,6 +1,6 @@
 # Adventure Racer
 
-Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 4 trassa (shu jumladan Kenney Racing Kit plitkalaridan yig'ilgan 3 aylanali Gran Pri), 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari va tuning, yakka rejimda 0–7 bot.
+Brauzerda ishlaydigan low-poly 3D onlayn poyga o'yini: 6 trassa (shu jumladan Kenney Racing Kit plitkalaridan yig'ilgan 3 aylanali Gran Pri, Alp tog' yo'li va tungi Tokio), 4 fasl, yomg'ir va qor, tangalar evaziga mashina upgrade'lari va tuning, yakka rejimda 0–7 bot.
 
 **Texnologiyalar:** Vite + React + TypeScript · three.js / @react-three/fiber / drei · @react-three/rapier · zustand · Node.js + Socket.io
 
@@ -169,7 +169,7 @@ Debug:
 ## Trassalar
 
 Har bir trassa — faqat ma'lumot (`shared/src/tracks/*.ts`, `TrackDef`): nazorat nuqtalari, zonalar
-(o'rmon / kanyon / xarobalar) va marshrut bo'ylab masofa (`s`, metr) orqali berilgan obyektlar.
+(o'rmon / kanyon / xarobalar / F1 halqasi / alp / shahar) va marshrut bo'ylab masofa (`s`, metr) orqali berilgan obyektlar.
 `createTrack()` (`shared/src/tracks/createTrack.ts`) ulardan marshrut, relyef, checkpoint, tanga va boostlarni quradi;
 `getTrack(id)` natijani keshlaydi. Client ham, server ham (har xonada o'z trassasi) shu obyektni ishlatadi.
 
@@ -179,6 +179,18 @@ Har bir trassa — faqat ma'lumot (`shared/src/tracks/*.ts`, `TrackDef`): nazora
 | **Tog' dovoni** (`mountain`) | ~1400 m | o'rmonli serpantin bilan ko'tarilish → qoyali dara, tunnel, dumalaydigan toshlar |
 | **Ko'l bo'yi** (`lake`) | ~1420 m | daryo ustidan ko'prik → ko'lni aylanib o'tuvchi o'rmon yo'li → xarobalar |
 | **Gran Pri** (`circuit`) | ~1090 m × 3 aylana | Kenney Racing Kit plitkalaridan 8-shakl: start to'g'ri yo'li pit binolari va tribunalar orasida, uning ustidan ko'prik, shimoliy (o'ngga) va janubiy (chapga) halqalar, kerblar, to'siqlar, paddok |
+| **Alp dovoni** (`alpine`) | ~2790 m × 2 aylana | vodiydagi startdan ikki serpantin bilan tog'ga ko'tarilish → tepada tunnel → g'arbiy yonbag'ir bo'ylab tushish; bir tomonda qoya devori, ikkinchisida jarlik va metall to'siq, fonda qorli cho'qqilar |
+| **Tokio tuni** (`city`) | ~2500 m × 3 aylana | tungi shahar: uzun prospekt, 90° chorrahalar, S-burilish; binolarda yonib turgan derazalar, neon lavhalar, fonarlar, fara |
+
+**Alp relyefi** (`landform` — `TrackDef`da): tog' yuzasi marshrut balandliklari, `anchors` (pastdagi vodiylar) va `edges`
+(yo'l yonidagi devor/jarlik: uchastka, tomon, masofa, balandlik farqi) nuqtalaridan keskin (d⁻⁴) og'irlikli o'rtacha bilan
+quriladi — har serpantin bo'lagi o'z pog'onasida, `bumps` — alohida cho'qqilar (tunnel ustidagi tizma). Jarlik bo'yida
+to'siq avtomatik qo'yiladi (`Guardrail.tsx`: yo'l chetidan 10 m narida relyef 4 m pastda bo'lsa).
+
+**Tungi shahar** (`env: { night, skyline }`): tunda osmon/tuman to'q ko'k, quyosh o'rniga xira oy nuri, o'yinchi mashinasida
+fara (SpotLight). Binolar, trotuarlar, neon lavhalar va fonarlar marshrutdan deterministik quriladi (`City.tsx`), teksturalar
+canvas'da chiziladi (`cityTextures.ts`). `skyline` — kamera bilan yuradigan uzoq fon halqasi (`Skyline.tsx`: cho'qqilar yoki
+osmono'par binolar), tuman ortida ham ko'rinadi.
 
 **Aylanali poyga** (`laps` va `startLine` — `TrackDef`da): marshrut yopiq halqa bo'ladi, checkpointlar har aylana uchun
 takrorlanadi (`totalS` — poyga boshidan umumiy masofa), har aylana start/marra chizig'idan o'tish bilan tugaydi,
