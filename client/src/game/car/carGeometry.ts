@@ -19,15 +19,14 @@ import { CAR, CARS, type CarId } from '@game/shared';
 import { useCarChoice } from '../../store/carChoice';
 
 /**
- * Mashina modellari (client/public/model/, ro'yxat: CARS): Kenney Racing Kit baggilari va teksturali modellar.
- * Teksturali modelda (masalan, superkar) rang teksturadan olinadi — uv saqlanadi, bo'yoq tuningi teksturani
- * qayta bo'yaydi (tuningParts.ts).
+ * Mashina modellari (client/public/model/, ro'yxat: CARS) — teksturali (rang teksturadan, uv saqlanadi; bir nechta
+ * tekstura bo'lsa — atlasga yig'iladi; bo'yoq tuningi teksturani qayta bo'yaydi — tuningParts.ts).
  * Yuklangandan keyin bo'laklar birlashtiriladi (kam draw call):
- *  - body:  butun korpus — material ranglari vertex rangga o'tkaziladi (1 draw call)
- *  - wheel: bitta g'ildirak (shina + disk), markazi koordinata boshida, o'qi X bo'ylab, disk +X tomonda
- * Vizual tuning uchun ular yana ikkiga bo'lingan: korpus = bodyRest + paint (bo'yoq), g'ildirak = tire + rim (disk).
- * Tuning yo'q bo'lsa birlashgan variant chiziladi (kam draw call).
- * Model fizikaga moslanadi: g'ildiraklar orasi (old-orqa) = CAR.WHEEL_POSITIONS, g'ildirak radiusi = CAR.WHEEL_RADIUS.
+ *  - body:  butun korpus (1 draw call)
+ *  - wheel: bitta g'ildirak, markazi koordinata boshida, o'qi X bo'ylab, disk +X tomonda
+ * Teksturasiz (vertex rangli) model ham ishlaydi — unda bo'yoq uchun korpus bodyRest + paint ga bo'linadi.
+ * Model fizikaga moslanadi: g'ildiraklar orasi (old-orqa) = CAR.WHEEL_POSITIONS; g'ildiraklar asl proporsiyada,
+ * kichik g'ildirak yerga tegishi uchun mashina wheelDrop ga pastlashtiriladi.
  * Fizika (collider, g'ildirak ulanish nuqtalari) o'zgarmaydi — bu faqat vizual.
  */
 
@@ -43,9 +42,6 @@ export interface CarModel {
   /** Korpusning bo'yoq qismi va qolgani (shina, oyna) */
   paint: BufferGeometry;
   bodyRest: BufferGeometry;
-  /** G'ildirakning shina va disk qismlari; disk alohida bo'lmasa (teksturali model) — null */
-  tire: BufferGeometry;
-  rim: BufferGeometry | null;
   /** Korpus va g'ildirak materiallari (Kenney — umumiy vertex-rangli, teksturali — o'z materiali) */
   bodyMaterial: MeshStandardMaterial;
   wheelMaterial: MeshStandardMaterial;
@@ -133,7 +129,7 @@ function merge(parts: BufferGeometry[]) {
   return g;
 }
 
-function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
+function buildCarModel(scene: Object3D): CarModel {
   scene.updateMatrixWorld(true);
   const meshes: Mesh[] = [];
   scene.traverse((o) => void ((o as Mesh).isMesh && meshes.push(o as Mesh)));
@@ -152,8 +148,8 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
   const physFrontZ = CAR.WHEEL_POSITIONS[0][2];
   const physBackZ = CAR.WHEEL_POSITIONS[2][2];
   const scale = (physFrontZ - physBackZ) / (fl.center.z - rl.center.z);
-  // G'ildirak radiusi: Kenney'da fizikadagiga cho'ziladi, realWheels'da modeldagi proporsiyada qoladi
-  const wheelScale = realWheels ? scale : CAR.WHEEL_RADIUS / (fl.size.y / 2);
+  // G'ildirak modeldagi asl proporsiyada (fizika radiusiga cho'zilmaydi)
+  const wheelScale = scale;
   // Kichik g'ildirak yerga tegishi uchun butun mashina (korpus va g'ildiraklar) shuncha pastga tushiriladi
   const wheelDrop = CAR.WHEEL_RADIUS - (fl.size.y / 2) * wheelScale;
   // Model o'qlari markazini fizika g'ildiraklari markaziga (tinch holatda) ko'chirish
@@ -184,14 +180,13 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
 
   const paint: BufferGeometry[] = [];
   const bodyRest: BufferGeometry[] = [];
-  const rim: BufferGeometry[] = [];
-  const tire: BufferGeometry[] = [];
+  const wheel: BufferGeometry[] = [];
   for (const m of meshes) {
     const part = partName(m);
     if (part === 'body') (isFixed(m) ? bodyRest : paint).push(bake(m, bodyFit, textured, uvMap));
-    else if (part === 'wheelFrontLeft') (isFixed(m) || textured ? tire : rim).push(bake(m, wheelFit, textured, uvMap));
+    else if (part === 'wheelFrontLeft') wheel.push(bake(m, wheelFit, textured, uvMap));
   }
-  if (!paint.length || !bodyRest.length || !tire.length || (!textured && !rim.length)) {
+  if (!paint.length || !bodyRest.length || !wheel.length) {
     throw new Error('Mashina modeli kutilgan tuzilmada emas');
   }
   const body = merge([...bodyRest, ...paint]);
@@ -199,11 +194,9 @@ function buildCarModel(scene: Object3D, realWheels: boolean): CarModel {
 
   return {
     body,
-    wheel: merge([...tire, ...rim]),
+    wheel: merge(wheel),
     paint: merge(paint),
     bodyRest: merge(bodyRest),
-    tire: merge(tire),
-    rim: rim.length ? merge(rim) : null,
     bodyMaterial: textured ? texturedMaterial(texture) : bodyMaterial,
     wheelMaterial: textured ? texturedMaterial(texture) : wheelMaterial,
     texture,
@@ -264,17 +257,16 @@ export function useCarModel(car: CarId): CarModel {
   const { scene } = useGLTF(modelUrl(car));
   return useMemo(() => {
     let model = cache.get(scene);
-    if (!model) cache.set(scene, (model = buildCarModel(scene, !!carDef(car).realWheels)));
+    if (!model) cache.set(scene, (model = buildCarModel(scene)));
     return model;
-  }, [scene, car]);
+  }, [scene]);
 }
 
 /**
- * Oldindan yuklash: Kenney baggilari (kichik, ~100 KB) doim; qolganlari (0.3–0.5 MB) — tanlanganda (menyu) yoki
- * kerak bo'lganda (boshqa o'yinchi, bot). Har mashina o'z Suspense'ida chiziladi — yuklanayotgan model dunyoni to'xtatmaydi.
+ * Oldindan yuklash: tanlangan mashina (menyu) — darhol; qolganlari (0.3–0.5 MB) kerak bo'lganda (boshqa o'yinchi, bot).
+ * Har mashina o'z Suspense'ida chiziladi — yuklanayotgan model dunyoni to'xtatmaydi.
  */
 export const preloadCar = (car: CarId) => useGLTF.preload(modelUrl(car));
-for (const c of CARS) if (!c.realWheels) preloadCar(c.id);
 preloadCar(useCarChoice.getState().car);
 
 export const bodyMaterial = new MeshStandardMaterial({ vertexColors: true, flatShading: true });

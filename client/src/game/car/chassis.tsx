@@ -125,7 +125,7 @@ export function Chassis({
       <CuboidCollider args={[HX, HY, HZ]} massProperties={MASS_PROPS} friction={0.3} />
       <CarBody car={car} look={look} />
       {CAR.WHEEL_POSITIONS.map(([x], i) => (
-        <Wheel key={i} car={car} rim={look.rim} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
+        <Wheel key={i} car={car} right={x < 0} ref={(el) => void (wheels.current[i] = el)} />
       ))}
       {children}
     </RigidBody>

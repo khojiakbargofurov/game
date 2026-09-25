@@ -1,20 +1,16 @@
-import { useMemo } from 'react';
 import {
   AdditiveBlending,
-  BoxGeometry,
   CanvasTexture,
   Color,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  type BufferGeometry,
   type Texture,
 } from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { findCosmetic, type CosmeticCategory } from '@game/shared';
 import { texturedMaterial, type CarModel } from './carGeometry';
 
 /**
- * Vizual tuning qismlari uchun materiallar va geometriyalar.
+ * Vizual tuning (bo'yoq, neon) uchun materiallar.
  * Materiallar rang bo'yicha keshlanadi — bir xil bo'yoqli mashinalar bitta materialni bo'lishadi.
  */
 
@@ -128,36 +124,6 @@ export function paintedTextureMaterial(model: CarModel, paintId: string | null):
     byPaint.set(item.id, tex ? texturedMaterial(tex, item.metallic) : null);
   }
   return byPaint.get(item.id) ?? undefined;
-}
-
-const box = (w: number, h: number, d: number, x: number, y: number, z: number) =>
-  new BoxGeometry(w, h, d).translate(x, y, z);
-
-const spoilerCache = new WeakMap<CarModel, Record<string, BufferGeometry>>();
-
-/** Spoyler geometriyasi: ikki ustun + qanot (korpusning orqa tepasida) */
-export function useSpoilerGeometry(model: CarModel, kind: string | null): BufferGeometry | null {
-  return useMemo(() => {
-    if (!kind) return null;
-    let byKind = spoilerCache.get(model);
-    if (!byKind) spoilerCache.set(model, (byKind = {}));
-    if (!byKind[kind]) {
-      const { min, max } = model.bounds;
-      const width = (max.x - min.x) * (kind === 'high' ? 0.95 : 0.8);
-      const lift = kind === 'high' ? 0.42 : 0.16;
-      const z = min.z + 0.28;
-      const top = max.y - 0.08 + lift;
-      const strutX = width * 0.3;
-      byKind[kind] = mergeGeometries([
-        box(0.06, lift + 0.1, 0.12, strutX, top - lift / 2, z),
-        box(0.06, lift + 0.1, 0.12, -strutX, top - lift / 2, z),
-        box(width, 0.05, kind === 'high' ? 0.42 : 0.3, 0, top + 0.02, z - 0.04),
-        box(0.04, 0.16, 0.36, width / 2, top + 0.06, z - 0.04),
-        box(0.04, 0.16, 0.36, -width / 2, top + 0.06, z - 0.04),
-      ])!;
-    }
-    return byKind[kind];
-  }, [model, kind]);
 }
 
 /** Neon yorug'ligi uchun yumshoq chetli to'rtburchak (oq — rangni material beradi) */

@@ -6,6 +6,7 @@ import { useGarage } from '../store/garage';
 import { MAX_BOTS, useMenuChoice } from '../store/raceSettings';
 import { DIFFICULTIES } from '../game/bots/botDriver';
 import { Garage } from './Garage';
+import { Credits } from './Credits';
 import { CarIcon } from './CarIcon';
 import { preloadCar } from '../game/car/carGeometry';
 import { RaceSettingsPicker } from './RaceSettingsPicker';
@@ -20,6 +21,7 @@ export function Menu() {
   const [name, setName] = useState(loadName);
   const [code, setCode] = useState('');
   const [garageOpen, setGarageOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const wallet = useGarage((s) => s.wallet);
   const choice = useMenuChoice();
 
@@ -94,8 +96,12 @@ export function Menu() {
         {!connected && <p className="note">Server bilan aloqa yo'q — faqat yakka rejim mavjud</p>}
         {connected && !trimmed && <p className="note">Onlayn o'ynash uchun ism kiriting</p>}
         {error && <p className="error">{error}</p>}
+        <button className="credits-link" onClick={() => setCreditsOpen(true)}>
+          Mualliflar
+        </button>
       </div>
       {garageOpen && <Garage onClose={() => setGarageOpen(false)} />}
+      {creditsOpen && <Credits onClose={() => setCreditsOpen(false)} />}
     </div>
   );
 }

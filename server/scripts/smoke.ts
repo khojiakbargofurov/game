@@ -223,7 +223,7 @@ async function main() {
       'room:create',
       { name: 'Sozlovchi', upgrades: { engine: 99, grip: -3, boost: 2.7, steering: 1 } as never,
         tune: { balance: 5, drift: -0.34 } as never,
-        look: { paint: 'gold', neon: 'hack' } as never,
+        look: { paint: 'gold', neon: 'hack', spoiler: 'high' } as never,
         settings: { trackId: 'lake', weather: 'snow' } },
       r,
     ),
@@ -236,7 +236,7 @@ async function main() {
     check(u.brakes === 0 && u.weight === 0 && u.nitro === 0, "eski klient (yangi qismlarsiz) — yangi qismlar 0");
     const { tune, look } = info.players[0];
     check(tune.balance === 1 && tune.drift === -0.3 && tune.suspension === 0, 'sozlash -1..1 ga cheklandi');
-    check(look.paint === 'gold' && look.neon === null && look.rim === null, "noma'lum vizual buyumlar e'tiborsiz qoldirildi");
+    check(look.paint === 'gold' && look.neon === null && !('spoiler' in look), "noma'lum vizual buyumlar e'tiborsiz qoldirildi");
     await join(g, info.code, 'Mehmon2');
     const settings = (c: Client, patch: object) =>
       new Promise<AckResult<null>>((r) => c.emit('room:settings', patch as never, r));

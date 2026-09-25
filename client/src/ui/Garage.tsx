@@ -25,12 +25,10 @@ const TABS: { id: Tab; label: string }[] = [
 
 const CATEGORY_LABEL: Record<CosmeticCategory, string> = {
   paint: "Bo'yoq",
-  rim: 'Disklar',
-  spoiler: 'Spoyler',
   neon: 'Neon',
 };
 /** "Zavod" tugmasi yorlig'i: bo'yoq/disk — asl rang, spoyler/neon — yo'q */
-const NONE_LABEL: Record<CosmeticCategory, string> = { paint: 'Zavod', rim: 'Zavod', spoiler: "Yo'q", neon: "Yo'q" };
+const NONE_LABEL: Record<CosmeticCategory, string> = { paint: 'Zavod', neon: "Yo'q" };
 
 /** Qismlar: tangalar evaziga upgrade'lar */
 function Parts() {
@@ -112,7 +110,6 @@ function Look() {
         <section key={cat} className="look-cat">
           <strong>
             {CATEGORY_LABEL[cat]}
-            {cat === 'rim' && def.fixedRims && <small className="look-hint"> — {def.label}ga ta'sir qilmaydi</small>}
           </strong>
           <div className="swatches" role="radiogroup" aria-label={CATEGORY_LABEL[cat]}>
             <button

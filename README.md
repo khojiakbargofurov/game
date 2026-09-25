@@ -88,9 +88,10 @@ npm run profile:load -w client   # yuklanish bosqichlari vaqti (relyef, manzara,
 
 ## Mashinalar
 
-Menyuda 16 ta mashinadan biri tanlanadi (`client/public/model/`): Kenney Racing Kit baggilari (Qizil, Yashil, To'q sariq, Oq),
-Superkar va Sketchfab modellari — Rally, Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap.
-Kenney modellari oldindan yuklanadi, qolganlari (0.3–0.4 MB) — tanlanganda yoki kerak bo'lganda; har mashina o'z
+Menyuda 12 ta mashinadan biri tanlanadi (`client/public/model/`): Superkar va Sketchfab modellari — Rally, Sport, Kupe,
+Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap. Olib tashlangan eski mashina (Kenney baggilari)
+tanlangan bo'lsa yoki eski klient yuborsa — standart mashina (`DEFAULT_CAR`).
+Tanlangan mashina oldindan yuklanadi, qolganlari (0.3–0.4 MB) — kerak bo'lganda; har mashina o'z
 `Suspense`ida, shuning uchun yuklanayotgan model dunyoni to'xtatmaydi. Bir nechta teksturali modellar runtime'da bitta
 atlasga yig'iladi; bo'yoq tuningi kuzovning asosiy rangini avtomatik aniqlab qayta bo'yaydi.
 
@@ -215,10 +216,22 @@ so'ng `npm run sim:route -w client -- <id>` bilan oxirigacha haydalishini tekshi
 - **Qismlar** (tanga): dvigatel, shinalar, boost, rul, tormoz, yengil kuzov, nitro — 5 darajadan
   (`shared/src/upgrades.ts`, `carStats()` — client ham, server anti-cheat ham shu formulani ishlatadi).
 - **Sozlash** (bepul): balans (boshqaruv ↔ tezlik, maks. +5%), suspensiya, drift. Onlayn'da server tekshiradi.
-- **Ko'rinish** (tanga): bo'yoq, disklar, spoyler, neon (`shared/src/cosmetics.ts`) — onlayn'da boshqalarga ham ko'rinadi.
+- **Ko'rinish** (tanga): bo'yoq va neon (`shared/src/cosmetics.ts`) — onlayn'da boshqalarga ham ko'rinadi. Disk rangi va
+  spoyler olib tashlangan; ilgari sotib olinganlari uchun tangalar avtomatik qaytariladi.
 - **Botlar** (yakka rejim, menyuda 0–7 ta, oson/o'rta/qiyin): haqiqiy fizikali mashinalar, marshrut bo'ylab
   burilishdan oldin tormozlaydi, oldidagi mashinani aylanib o'tadi, qotib qolsa orqaga chiqadi
   (`client/src/game/bots/botDriver.ts`). O'rin HUD'da va natijalar jadvalida; 1–3-o'rin uchun bonus tanga.
+
+## Mualliflar
+
+O'yindagi tashqi modellar va litsenziyalari — `client/src/credits.ts` (o'yinda: menyu → **Mualliflar**).
+
+| Resurs | Muallif | Litsenziya | O'yinda |
+| --- | --- | --- | --- |
+| [Racing Kit](https://kenney.nl/assets/racing-kit) | Kenney | CC0 1.0 | Gran Pri trassasi (plitkalar, tribunalar, pit binolari, chodirlar, daraxtlar) |
+| CAR Model | Ignition Labs | *to'ldirish kerak* | Superkar |
+| Evo Rally Car | *to'ldirish kerak* | *to'ldirish kerak* | Rally |
+| Generic Passenger Car Pack | *to'ldirish kerak* | *to'ldirish kerak* | Sport, Kupe, Sedan, Kompakt, Xetchbek, Universal, Miniven, Jip, Offroad, Pikap |
 
 ## Deploy
 

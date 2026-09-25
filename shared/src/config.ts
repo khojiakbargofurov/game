@@ -27,65 +27,40 @@ export const ROOM = {
 
 /**
  * Tanlanadigan mashinalar (client/public/model/). Fizika hammasida bir xil — farq faqat ko'rinishda.
- * `color` — menyudagi namuna rangi (modeldagi korpus rangi).
- * `realWheels` — g'ildiraklar modeldagi asl proporsiyada (sport mashina: kichik g'ildirak), korpus shunga
- * mos pastroq tushiriladi; aks holda (Kenney baggilari) vizual g'ildirak radiusi = CAR.WHEEL_RADIUS.
+ * Hammasi teksturali modellar, g'ildiraklar modeldagi asl proporsiyada (carGeometry.ts).
+ * `color` — menyudagi namuna rangi (modeldagi korpus rangi), `icon` — menyudagi rasm shakli.
+ * Superkar — obj2gltf eksporti, qolganlari Sketchfab modellari (scripts/import-car.ts bilan o'yin formatiga o'tkazilgan).
  */
 export const CARS: readonly CarDef[] = [
-  { id: 'red', label: 'Qizil', model: 'raceCarRed.glb', color: '#e85454' },
-  { id: 'green', label: 'Yashil', model: 'raceCarGreen.glb', color: '#4d8f6e' },
-  { id: 'orange', label: "To'q sariq", model: 'raceCarOrange.glb', color: '#f5ba42' },
-  { id: 'white', label: 'Oq', model: 'raceCarWhite.glb', color: '#f2f2f4' },
-  { id: 'super', label: 'Superkar', model: 'superCar.glb', color: '#f5b400', realWheels: true, icon: 'sport', fixedRims: true },
-  // Sketchfab modellari — scripts/import-car.ts bilan o'yin formatiga o'tkazilgan (teksturali, asl g'ildiraklar)
-  { id: 'rally', label: 'Rally', model: 'rally.glb', color: '#e8e8ec', realWheels: true, icon: 'sedan', fixedRims: true },
-  { id: 'sport', label: 'Sport', model: 'sport.glb', color: '#c93a3a', realWheels: true, icon: 'sport', fixedRims: true },
-  { id: 'coupe', label: 'Kupe', model: 'coupe.glb', color: '#3a6fc9', realWheels: true, icon: 'sport', fixedRims: true },
-  { id: 'sedan', label: 'Sedan', model: 'sedan.glb', color: '#c9b53a', realWheels: true, icon: 'sedan', fixedRims: true },
-  { id: 'compact', label: 'Kompakt', model: 'compact.glb', color: '#3ac98f', realWheels: true, icon: 'hatch', fixedRims: true },
-  { id: 'hatchback', label: 'Xetchbek', model: 'hatchback.glb', color: '#c97a3a', realWheels: true, icon: 'hatch', fixedRims: true },
-  { id: 'wagon', label: 'Universal', model: 'wagon.glb', color: '#8a8f99', realWheels: true, icon: 'wagon', fixedRims: true },
-  { id: 'minivan', label: 'Miniven', model: 'minivan.glb', color: '#b8bcc4', realWheels: true, icon: 'van', fixedRims: true },
-  { id: 'suv', label: 'Jip', model: 'suv.glb', color: '#2f3a4a', realWheels: true, icon: 'suv', fixedRims: true },
-  { id: 'offroad', label: 'Offroad', model: 'offroad.glb', color: '#4d6b3a', realWheels: true, icon: 'suv', fixedRims: true },
-  { id: 'pickup', label: 'Pikap', model: 'pickup.glb', color: '#9a3a2a', realWheels: true, icon: 'pickup', fixedRims: true },
+  { id: 'super', label: 'Superkar', model: 'superCar.glb', color: '#f5b400', icon: 'sport' },
+  { id: 'rally', label: 'Rally', model: 'rally.glb', color: '#e8e8ec', icon: 'sedan' },
+  { id: 'sport', label: 'Sport', model: 'sport.glb', color: '#c93a3a', icon: 'sport' },
+  { id: 'coupe', label: 'Kupe', model: 'coupe.glb', color: '#3a6fc9', icon: 'sport' },
+  { id: 'sedan', label: 'Sedan', model: 'sedan.glb', color: '#c9b53a', icon: 'sedan' },
+  { id: 'compact', label: 'Kompakt', model: 'compact.glb', color: '#3ac98f', icon: 'hatch' },
+  { id: 'hatchback', label: 'Xetchbek', model: 'hatchback.glb', color: '#c97a3a', icon: 'hatch' },
+  { id: 'wagon', label: 'Universal', model: 'wagon.glb', color: '#8a8f99', icon: 'wagon' },
+  { id: 'minivan', label: 'Miniven', model: 'minivan.glb', color: '#b8bcc4', icon: 'van' },
+  { id: 'suv', label: 'Jip', model: 'suv.glb', color: '#2f3a4a', icon: 'suv' },
+  { id: 'offroad', label: 'Offroad', model: 'offroad.glb', color: '#4d6b3a', icon: 'suv' },
+  { id: 'pickup', label: 'Pikap', model: 'pickup.glb', color: '#9a3a2a', icon: 'pickup' },
 ];
 
 /** Yangi mashina qo'shilganda id shu yerga ham yoziladi (CarId tipi shundan) */
-const CAR_IDS = [
-  'red',
-  'green',
-  'orange',
-  'white',
-  'super',
-  'rally',
-  'sport',
-  'coupe',
-  'sedan',
-  'compact',
-  'hatchback',
-  'wagon',
-  'minivan',
-  'suv',
-  'offroad',
-  'pickup',
-] as const;
+const CAR_IDS = ['super', 'rally', 'sport', 'coupe', 'sedan', 'compact', 'hatchback', 'wagon', 'minivan', 'suv', 'offroad', 'pickup'] as const;
 
 export interface CarDef {
   id: CarId;
   label: string;
   model: string;
   color: string;
-  realWheels?: boolean;
-  /** Menyudagi rasm shakli (standart — bagi) */
-  icon?: CarIconShape;
-  /** Disk alohida qism emas (tekstura atlasida) — disk rangi tuningi bu mashinaga ta'sir qilmaydi */
-  fixedRims?: boolean;
+  icon: CarIconShape;
 }
 
 export type CarId = (typeof CAR_IDS)[number];
-export type CarIconShape = 'buggy' | 'sport' | 'sedan' | 'hatch' | 'wagon' | 'van' | 'suv' | 'pickup';
-export const DEFAULT_CAR: CarId = 'red';
+export type CarIconShape = 'sport' | 'sedan' | 'hatch' | 'wagon' | 'van' | 'suv' | 'pickup';
+/** Standart mashina; eski (olib tashlangan) mashina id'si kelsa ham shu (server, localStorage) */
+export const DEFAULT_CAR: CarId = 'sport';
 
 export function isCarId(v: unknown): v is CarId {
   return CARS.some((c) => c.id === v);

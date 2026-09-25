@@ -72,8 +72,6 @@ function randomLook(): CarLook {
   const id = (list: readonly CosmeticItem[]) => pick(list).id;
   return {
     paint: Math.random() < 0.7 ? id(COSMETICS.paint) : null,
-    rim: Math.random() < 0.5 ? id(COSMETICS.rim) : null,
-    spoiler: maybe(0.35, COSMETICS.spoiler)?.id ?? null,
     neon: maybe(0.25, COSMETICS.neon)?.id ?? null,
   };
 }

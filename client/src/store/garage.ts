@@ -34,18 +34,36 @@ interface Saved {
   look: CarLook;
 }
 
+/**
+ * Olib tashlangan vizual buyumlar (disk rangi, spoyler) — o'sha paytdagi narxlari. Sotib olinganlari uchun
+ * tangalar hamyonga qaytariladi (bir marta: buyum ro'yxatdan o'chiriladi va saqlanadi).
+ */
+const REFUND: Record<string, number> = {
+  'rim:black': 20,
+  'rim:white': 20,
+  'rim:red': 30,
+  'rim:blue': 30,
+  'rim:gold': 60,
+  'spoiler:low': 40,
+  'spoiler:high': 70,
+};
+
 function load(): Saved {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>;
-    const wallet = typeof raw.wallet === 'number' && Number.isFinite(raw.wallet) ? Math.max(0, Math.floor(raw.wallet)) : 0;
-    const owned = Array.isArray(raw.owned) ? raw.owned.filter((k): k is string => typeof k === 'string') : [];
+    let wallet = typeof raw.wallet === 'number' && Number.isFinite(raw.wallet) ? Math.max(0, Math.floor(raw.wallet)) : 0;
+    const bought = Array.isArray(raw.owned) ? raw.owned.filter((k): k is string => typeof k === 'string') : [];
+    for (const k of bought) wallet += REFUND[k] ?? 0;
+    const owned = bought.filter((k) => !(k in REFUND));
     // Faqat sotib olingan buyumlar kiyilgan bo'lishi mumkin
     const look = sanitizeLook(raw.look);
     for (const cat of Object.keys(look) as CosmeticCategory[]) {
       const id = look[cat];
       if (id && !owned.includes(cosmeticKey(cat, id))) look[cat] = null;
     }
-    return { wallet, levels: sanitizeUpgrades(raw.levels), tune: sanitizeTune(raw.tune), owned, look };
+    const saved = { wallet, levels: sanitizeUpgrades(raw.levels), tune: sanitizeTune(raw.tune), owned, look };
+    if (owned.length !== bought.length) save(saved); // qaytarilgan tangalar ikki marta qo'shilmasin
+    return saved;
   } catch {
     return { wallet: 0, levels: { ...NO_UPGRADES }, tune: { ...NO_TUNE }, owned: [], look: { ...NO_LOOK } };
   }

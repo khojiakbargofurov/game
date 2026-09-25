@@ -1,12 +1,14 @@
 /**
- * Vizual tuning: bo'yoq, disk rangi, spoyler, neon. Tangalar evaziga sotib olinadi (garaj, localStorage),
- * fizikaga ta'sir qilmaydi. Onlayn'da boshqa o'yinchilarga ham ko'rinadi (server faqat id'larni tekshiradi).
+ * Vizual tuning: bo'yoq va neon. Tangalar evaziga sotib olinadi (garaj, localStorage), fizikaga ta'sir qilmaydi.
+ * Onlayn'da boshqa o'yinchilarga ham ko'rinadi (server faqat id'larni tekshiradi).
+ * Disk rangi va spoyler olib tashlangan (teksturali mashinalarda disk alohida qism emas; spoyler har mashinada
+ * bir xil chiqardi) — sotib olinganlari uchun tangalar qaytariladi (client/src/store/garage.ts).
  */
 
 export interface CosmeticItem {
   id: string;
   label: string;
-  /** Asosiy rang (bo'yoq, disk, neon; spoyler uchun — namuna rangi) */
+  /** Asosiy rang (bo'yoq, neon) */
   color: string;
   cost: number;
   /** Metall bo'yoq (oltin, xrom) */
@@ -23,17 +25,6 @@ export const COSMETICS = {
     { id: 'gold', label: 'Oltin', color: '#e8b923', cost: 90, metallic: true },
     { id: 'chrome', label: 'Xrom', color: '#d8dde3', cost: 120, metallic: true },
   ],
-  rim: [
-    { id: 'black', label: 'Qora', color: '#26262a', cost: 20 },
-    { id: 'white', label: 'Oq', color: '#f4f4f4', cost: 20 },
-    { id: 'red', label: 'Qizil', color: '#e03b2b', cost: 30 },
-    { id: 'blue', label: "Ko'k", color: '#2b8fe0', cost: 30 },
-    { id: 'gold', label: 'Oltin', color: '#e8b923', cost: 60, metallic: true },
-  ],
-  spoiler: [
-    { id: 'low', label: 'Past', color: '#3a3330', cost: 40 },
-    { id: 'high', label: 'Baland (GT)', color: '#3a3330', cost: 70 },
-  ],
   neon: [
     { id: 'cyan', label: 'Moviy', color: '#2bf0ff', cost: 60 },
     { id: 'pink', label: 'Pushti', color: '#ff3fb4', cost: 60 },
@@ -46,9 +37,9 @@ export const COSMETICS = {
 export type CosmeticCategory = keyof typeof COSMETICS;
 export const COSMETIC_CATEGORIES = Object.keys(COSMETICS) as CosmeticCategory[];
 
-/** Har kategoriya bo'yicha tanlangan buyum id'si; null — zavod holati (spoyler/neon — yo'q) */
+/** Har kategoriya bo'yicha tanlangan buyum id'si; null — zavod holati (neon — yo'q) */
 export type CarLook = Record<CosmeticCategory, string | null>;
-export const NO_LOOK: CarLook = { paint: null, rim: null, spoiler: null, neon: null };
+export const NO_LOOK: CarLook = { paint: null, neon: null };
 
 export const cosmeticKey = (cat: CosmeticCategory, id: string) => `${cat}:${id}`;
 

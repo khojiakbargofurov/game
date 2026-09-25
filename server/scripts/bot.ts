@@ -10,6 +10,7 @@
  */
 import { io, type Socket } from 'socket.io-client';
 import {
+  DEFAULT_CAR,
   DEFAULT_TRACK,
   NET,
   getTrack,
@@ -30,7 +31,7 @@ const url = option('url', `http://localhost:${NET.DEFAULT_PORT}`);
 const name = option('name', `Bot-${Math.floor(Math.random() * 90 + 10)}`);
 const speed = Number(option('speed', '18'));
 const cheat = flag('cheat');
-const car = option('car', 'red');
+const car = option('car', DEFAULT_CAR);
 
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(url);
 
