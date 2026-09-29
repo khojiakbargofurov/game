@@ -1,10 +1,11 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Color, type PerspectiveCamera } from 'three';
 import { CAMERA, LIGHTING, WORLD, getTrack } from '@game/shared';
 import { useQuality, QUALITY_PRESETS } from '../store/quality';
+import { isTouch } from '../store/device';
 import { useActiveSettings, usePalette, useWeatherFx } from '../store/raceSettings';
 import { Lights } from './Lights';
 import { Terrain } from './Terrain';
@@ -55,6 +56,30 @@ function CarEnv() {
   return null;
 }
 
+/**
+ * 120Hz telefon ekranlarida kadrlar 60 ga cheklanadi: fizika baribir 1/60 qadamda,
+ * ortiqcha render faqat batareya va qizishga ketadi. Canvas `frameloop="demand"` bilan ishlaydi,
+ * bu yerda o'z rAF siklimiz ~60Hz da invalidate() chaqiradi (60Hz ekranda — har kadr).
+ */
+const FRAME_MS = 1000 / 60;
+
+function FrameCap() {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    let next = 0;
+    let id = requestAnimationFrame(function loop(now) {
+      // 2ms zaxira — 60Hz ekranda kadr vaqti biroz tebransa ham kadr tashlab ketilmasin
+      if (now >= next - 2) {
+        next = Math.max(next + FRAME_MS, now);
+        invalidate();
+      }
+      id = requestAnimationFrame(loop);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [invalidate]);
+  return null;
+}
+
 /** Tungi trassa osmoni va tumani */
 const NIGHT = { sky: '#0a0f26', fog: '#141a3a' } as const;
 
@@ -66,6 +91,13 @@ export default function Scene() {
   // Adaptiv piksel zichligi: FPS tushsa kamayadi, barqaror bo'lsa ko'tariladi (preset oralig'ida)
   const [dpr, setDpr] = useState(maxDpr);
   useEffect(() => setDpr(maxDpr), [maxDpr]);
+  // Piksel zichligi eng pastga tushgandan keyin ham FPS past qolsa — sifat bir daraja pasaytiriladi
+  const lowStrikes = useRef(0);
+  useEffect(() => void (lowStrikes.current = 0), [quality]);
+  const onDecline = ({ factor }: { factor: number }) => {
+    if (factor > 0) return;
+    if (++lowStrikes.current >= 2) useQuality.getState().autoDowngrade();
+  };
 
   // Fasl + ob-havo: osmon/tuman rangi ob-havo rangiga aralashtiriladi, yomg'ir/qorda tuman yaqinroq
   const { trackId, season } = useActiveSettings();
@@ -87,11 +119,14 @@ export default function Scene() {
       key={preset.antialias ? 'aa' : 'no-aa'}
       shadows={preset.shadows}
       dpr={dpr}
+      frameloop={isTouch ? 'demand' : 'always'}
       camera={{ fov: CAMERA.FOV, near: 0.1, far: fogFar + 40 }}
       gl={{ antialias: preset.antialias, powerPreference: 'high-performance' }}
     >
+      {isTouch && <FrameCap />}
       <PerformanceMonitor
         onChange={({ factor }) => setDpr(Math.round((minDpr + (maxDpr - minDpr) * factor) * 100) / 100)}
+        onDecline={onDecline}
       />
       <CameraFar far={fogFar + 40} />
       <color attach="background" args={[sky]} />

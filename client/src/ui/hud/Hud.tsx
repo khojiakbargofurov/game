@@ -8,6 +8,7 @@ import { ControlsHint } from './ControlsHint';
 import { FinishDeadline } from './FinishDeadline';
 import { CameraToast } from './CameraToast';
 import { TouchControls } from './TouchControls';
+import { QualityToast } from './QualityToast';
 
 /**
  * Poyga HUD'i:
@@ -29,6 +30,7 @@ export function Hud() {
       <FinishDeadline />
       <CameraToast />
       <TouchControls />
+      <QualityToast />
     </div>
   );
 }

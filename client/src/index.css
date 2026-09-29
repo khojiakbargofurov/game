@@ -437,6 +437,12 @@ html.touch input {
   opacity: 0;
 }
 
+.quality-toast {
+  top: 44%;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 /* Tor ekranlar: mini-xarita va eslatma kichrayadi */
 @media (max-width: 720px) {
   .minimap {

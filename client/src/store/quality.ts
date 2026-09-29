@@ -48,11 +48,25 @@ function initialQuality(): Quality {
 
 interface QualityState {
   quality: Quality;
+  /** FPS uzoq vaqt past bo'lgani uchun sifat avtomatik pasaytirilgan vaqt (performance.now()), 0 — hali yo'q */
+  autoDowngradedAt: number;
   setQuality: (q: Quality) => void;
+  /** Bir daraja pasaytirish (seansda bir marta) — true qaytarsa pasaytirildi */
+  autoDowngrade: () => boolean;
 }
 
-export const useQuality = create<QualityState>((set) => ({
+const LOWER: Record<Quality, Quality | null> = { high: 'medium', medium: 'low', low: null };
+
+export const useQuality = create<QualityState>((set, get) => ({
   quality: initialQuality(),
+  autoDowngradedAt: 0,
+  autoDowngrade: () => {
+    const next = LOWER[get().quality];
+    if (!next || get().autoDowngradedAt) return false;
+    get().setQuality(next);
+    set({ autoDowngradedAt: performance.now() });
+    return true;
+  },
   setQuality: (quality) => {
     try {
       localStorage.setItem(KEY, quality);
