@@ -44,6 +44,8 @@ export const CARS: readonly CarDef[] = [
   { id: 'sf90', label: 'SF90 XX', model: 'sf90.glb', color: '#d11a1a', icon: 'sport' },
   { id: 'bolide', label: 'Bolide', model: 'bolide.glb', color: '#1d3f8c', icon: 'sport' },
   { id: 'tourbillon', label: 'Tourbillon', model: 'tourbillon.glb', color: '#2a4a8a', icon: 'sport' },
+  { id: 'm3gtr', label: 'M3 GTR', model: 'm3gtr.glb', color: '#c8ccd2', icon: 'sport' },
+  { id: 'razor', label: 'M3 GTR Razor', model: 'razor.glb', color: '#b9bcc2', icon: 'sport' },
 ];
 
 /** Yangi mashina qo'shilganda id shu yerga ham yoziladi (CarId tipi shundan) */
@@ -59,6 +61,8 @@ const CAR_IDS = [
   'sf90',
   'bolide',
   'tourbillon',
+  'm3gtr',
+  'razor',
 ] as const;
 
 export interface CarDef {

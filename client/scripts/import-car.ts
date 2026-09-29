@@ -65,7 +65,7 @@ function linearColor(hex: string): number[] {
 const GLASS = /glass|window|windo_|luna|windshield/i;
 const NOT_GLASS = /light|lamp|red|orange|amber|surr|led/i;
 /** Standart: g'ildirak qismlari (tugun yoki material nomi bo'yicha) */
-const WHEEL_PART = /tire|tyre|wheel|\brims?\b|rim[ ._]|rimbolt|rimlogo|rim_nut|brake(?!light)|disk|disc\b|caliper|calliper|volk/i;
+const WHEEL_PART = /tire|tyre|tread|wheel|\brims?\b|rim[ ._]|rimbolt|rimlogo|rim_nut|brake(?!light|_?of)|disk|disc\b|caliper|calliper|volk/i;
 
 const PACK = 'generic_passenger_car_pack.glb';
 const CARS: CarSpec[] = [
@@ -87,6 +87,8 @@ const CARS: CarSpec[] = [
     textureSize: 256,
     colors: { GREEN_car_paint: '#3f9b4a', Coloured: '#3f9b4a' },
   },
+  { id: 'm3gtr', src: '2001_bmw_m3_gtr.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
+  { id: 'razor', src: 'bmw_m3_gtr_razor.glb', glass: GLASS, wheels: 'quadrant', textureSize: 256 },
 ];
 
 // ───────────── GLB o'qish ─────────────
