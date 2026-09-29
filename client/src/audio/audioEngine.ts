@@ -37,6 +37,14 @@ function unlock() {
 }
 
 window.addEventListener('pointerdown', unlock);
+// iOS Safari AudioContext'ni faqat touchend'dan keyin ochadi (pointerdown/touchstart yetarli emas)
+window.addEventListener('touchend', unlock);
+// Ilova fonga o'tsa ovoz to'xtaydi (telefon batareyasi), qaytganda davom etadi
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return;
+  if (document.hidden) void ctx.suspend();
+  else void ctx.resume();
+});
 window.addEventListener('keydown', (e) => {
   unlock();
   if (e.code === 'KeyM' && !(e.target instanceof HTMLInputElement)) toggleMute();

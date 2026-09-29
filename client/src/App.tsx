@@ -6,6 +6,8 @@ import { FinishOverlay } from './ui/FinishOverlay';
 import { Menu } from './ui/Menu';
 import { RoomLobby } from './ui/RoomLobby';
 import { Countdown } from './ui/Countdown';
+import { RotateOverlay } from './ui/RotateOverlay';
+import './store/device';
 import './net/session';
 import './audio/gameSounds';
 
@@ -30,6 +32,7 @@ export default function App() {
           <FinishOverlay />
         </>
       )}
+      <RotateOverlay />
     </>
   );
 }

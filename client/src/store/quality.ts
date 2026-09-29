@@ -40,9 +40,10 @@ function initialQuality(): Quality {
   } catch {
     // e'tiborsiz
   }
-  // Oddiy evristika: kam yadroli yoki mobil qurilma — o'rta sifatdan boshlash
+  // Oddiy evristika: telefon/planshet — past, kam yadroli kompyuter — o'rta sifatdan boshlash
   const cores = navigator.hardwareConcurrency ?? 4;
-  return cores <= 4 || /Mobi|Android/i.test(navigator.userAgent) ? 'medium' : 'high';
+  if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches) return 'low';
+  return cores <= 4 ? 'medium' : 'high';
 }
 
 interface QualityState {

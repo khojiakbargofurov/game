@@ -4,6 +4,7 @@ import { carTarget } from '../../game/carTarget';
 import { useGameStore } from '../../store/gameStore';
 import { useAnimationFrame } from './useAnimationFrame';
 import { ownCarStats } from '../../store/garage';
+import { isTouch } from '../../store/device';
 
 const MAX_KMH = Math.round(CAR.MAX_SPEED * CAR.BOOST_MULTIPLIER * 3.6); // shkala oxiri (boost bilan)
 const R = 54;
@@ -65,7 +66,7 @@ export function SpeedGauge() {
       </div>
       <div className="boost-meter nitro-meter" hidden>
         <div ref={nitroBar} />
-        <em>NITRO · Shift</em>
+        <em>{isTouch ? 'NITRO' : 'NITRO · Shift'}</em>
       </div>
     </div>
   );

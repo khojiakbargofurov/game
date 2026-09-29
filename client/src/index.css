@@ -7,6 +7,59 @@ body,
   overflow: hidden;
   background: #f4c99b;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sensorli qurilma: double-tap zoom, uzoq bosishda matn tanlash va tizim menyusi o'chiriladi */
+html.touch,
+html.touch body {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.touch input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Portret holatda — telefonni aylantirish so'rovi */
+.rotate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: #1a1410;
+  color: #fff5e6;
+  text-align: center;
+  font-size: 15px;
+}
+
+.rotate-overlay strong {
+  font-size: 22px;
+}
+
+.rotate-icon {
+  font-size: 64px;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%,
+  30% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
+  }
 }
 
 .race-status {
@@ -146,7 +199,7 @@ body,
 
 .hud {
   position: fixed;
-  inset: 0;
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   pointer-events: none;
   color: #fff5e6;
 }
@@ -2117,5 +2170,208 @@ body,
 
   .hub-tab-inner {
     padding: 7px 16px;
+  }
+}
+
+/* ───── Sensorli boshqaruv (telefon) ───── */
+
+.touch-controls {
+  --tc: calc(76px * var(--tc-scale, 1));
+  inset: 0;
+  pointer-events: none;
+}
+
+.touch-controls button,
+.tc-steer {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.tc-btn {
+  display: grid;
+  place-items: center;
+  width: var(--tc);
+  height: var(--tc);
+  padding: 0;
+  border: 2px solid rgba(255, 245, 230, 0.35);
+  border-radius: 50%;
+  background: rgba(40, 28, 20, 0.35);
+  color: #fff5e6;
+  font: 800 13px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(2px);
+  transition:
+    background 0.08s,
+    transform 0.08s;
+}
+
+.tc-btn:active {
+  background: rgba(255, 154, 46, 0.6);
+  transform: scale(0.94);
+}
+
+/* Rul: bitta zona, barmoq ◀ va ▶ orasida sirpana oladi */
+.tc-steer {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: calc(18px * var(--tc-scale, 1));
+  padding: 8px;
+}
+
+.tc-steer .tc-btn {
+  font-size: 28px;
+  pointer-events: none; /* bosishni zona o'zi ushlaydi */
+}
+
+.tc-pedals {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.tc-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.tc-gas {
+  width: calc(var(--tc) * 1.25);
+  height: calc(var(--tc) * 1.25);
+  border-color: rgba(120, 230, 120, 0.6);
+  font-size: 16px;
+}
+
+.tc-brake {
+  border-color: rgba(255, 110, 90, 0.6);
+  font-size: 11px;
+}
+
+.tc-drift {
+  width: calc(var(--tc) * 0.85);
+  height: calc(var(--tc) * 0.85);
+  font-size: 11px;
+}
+
+.tc-nitro {
+  width: calc(var(--tc) * 0.85);
+  height: calc(var(--tc) * 0.85);
+  border-color: rgba(90, 190, 255, 0.7);
+  font-size: 11px;
+}
+
+.tc-utils {
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.tc-small {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(40, 28, 20, 0.55);
+  color: #fff5e6;
+  font-size: 20px;
+}
+
+.tc-small:active {
+  background: rgba(255, 154, 46, 0.7);
+}
+
+/* Chap qo'l rejimi: rul o'ngda, pedallar chapda */
+.touch-controls.lh .tc-steer {
+  left: auto;
+  right: 12px;
+}
+
+.touch-controls.lh .tc-pedals {
+  right: auto;
+  left: 12px;
+  flex-direction: row-reverse;
+}
+
+/* Telefonda HUD: pastki burchaklar tugmalarga band — xarita chap-tepaga, tezlik markaz-pastga */
+html.touch .minimap {
+  top: 130px;
+  bottom: auto;
+  left: 12px;
+  transform: scale(0.62);
+  transform-origin: top left;
+}
+
+html.touch .gauge {
+  right: auto;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%) scale(0.78);
+  transform-origin: bottom center;
+}
+
+html.touch .hint {
+  top: 96px;
+  bottom: auto;
+  display: block;
+  font-size: 12px;
+}
+
+html.touch .hud-button {
+  min-width: 42px;
+  min-height: 42px;
+}
+
+@media (pointer: coarse) and (max-height: 500px) {
+  .race-status {
+    top: 8px;
+    left: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .stat-time {
+    font-size: 20px;
+  }
+
+  .hud-top-right {
+    top: 8px;
+    right: 8px;
+  }
+
+  .tc-utils {
+    top: 58px;
+    right: 8px;
+  }
+
+  .guidance {
+    top: 6px;
+  }
+
+  .guide-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  html.touch .minimap {
+    top: 104px;
+    left: 8px;
+    transform: scale(0.5);
+  }
+
+  html.touch .hint {
+    top: 70px;
+  }
+
+  .countdown {
+    font-size: 96px;
   }
 }

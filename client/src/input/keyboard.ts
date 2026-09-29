@@ -15,6 +15,8 @@ export const input = {
   /** Shift — nitro */
   nitro: false,
   respawn: false,
+  /** Analog rul -1..1 (musbat = chapga) — telefonni egish (tilt); undefined bo'lsa left/right ishlatiladi */
+  steerAxis: undefined as number | undefined,
 };
 
 type HeldAction = 'forward' | 'backward' | 'left' | 'right' | 'handbrake' | 'lookBack' | 'nitro';

@@ -7,6 +7,7 @@ import { MuteButton } from './MuteButton';
 import { ControlsHint } from './ControlsHint';
 import { FinishDeadline } from './FinishDeadline';
 import { CameraToast } from './CameraToast';
+import { TouchControls } from './TouchControls';
 
 /**
  * Poyga HUD'i:
@@ -27,6 +28,7 @@ export function Hud() {
       <ControlsHint />
       <FinishDeadline />
       <CameraToast />
+      <TouchControls />
     </div>
   );
 }
