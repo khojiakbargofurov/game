@@ -1,6 +1,7 @@
 import { ROOM } from '@game/shared';
 import { useGarage } from '../../store/garage';
 import { useNetStore } from '../../store/netStore';
+import { InstallChip } from './InstallChip';
 
 /** Yuqori panel: orqaga + ekran nomi (chapda), ism, tangalar, server holati (o'ngda) */
 export function TopBar({
@@ -28,6 +29,7 @@ export function TopBar({
         <h1 className="hub-title">{title}</h1>
       </div>
       <div className="hub-top-right">
+        <InstallChip />
         <label className="hub-chip hub-name" title="Ismingiz">
           <span aria-hidden="true">👤</span>
           {onName ? (

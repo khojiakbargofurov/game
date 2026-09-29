@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#2a1d14"/>
+      <stop offset="1" stop-color="#0a0e16"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" x2="1">
+      <stop offset="0" stop-color="#ffb400"/>
+      <stop offset="1" stop-color="#ff5a1f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Asphalt uslubidagi qiya chiziq -->
+  <polygon points="96,300 470,300 430,352 56,352" fill="url(#accent)"/>
+  <!-- Tezlik chiziqlari -->
+  <g fill="#ffb400" opacity="0.85">
+    <polygon points="70,196 150,196 144,206 64,206"/>
+    <polygon points="52,226 124,226 118,236 46,236"/>
+    <polygon points="80,256 140,256 134,266 74,266"/>
+  </g>
+  <!-- Sport mashina (CarIcon 'sport' shakli, 64×28 → ×5.6) -->
+  <g transform="translate(92 150) scale(5.6)">
+    <path d="M3 18 L5 14 L20 12 L30 8 L42 8 L52 12 L61 14 L61 18 Z" fill="#fff5e6" stroke="#0a0e16" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M31 9 L41 9 L48 12 L25 12 Z" fill="#1c2230"/>
+    <path d="M5 15.2 L58 15.2" stroke="#ff5a1f" stroke-width="1.1"/>
+    <circle cx="15" cy="20" r="4.5" fill="#1c1a19"/>
+    <circle cx="15" cy="20" r="2.2" fill="#ffb400"/>
+    <circle cx="50" cy="20" r="4.5" fill="#1c1a19"/>
+    <circle cx="50" cy="20" r="2.2" fill="#ffb400"/>
+  </g>
+</svg>
