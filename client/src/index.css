@@ -14,10 +14,15 @@ body,
 /* Sensorli qurilma: double-tap zoom, uzoq bosishda matn tanlash va tizim menyusi o'chiriladi */
 html.touch,
 html.touch body {
-  touch-action: none;
+  touch-action: pan-x pan-y; /* zoom yo'q, lekin menyu ro'yxatlari barmoq bilan aylantiriladi */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* 3D sahna (menyuda mashinani aylantirish, poygada kamera) — brauzer imo-ishoralari o'chiq */
+html.touch canvas {
+  touch-action: none;
 }
 
 html.touch input {
@@ -2373,5 +2378,270 @@ html.touch .hud-button {
 
   .countdown {
     font-size: 96px;
+  }
+}
+
+/* ───── Telefon landshaft (balandlik ~360–500px): menyu ixcham ───── */
+
+@media (max-height: 500px) {
+  .hub-top {
+    padding: 8px 16px;
+  }
+
+  .hub-title {
+    font-size: 22px;
+  }
+
+  .hub-title::after {
+    width: 44px;
+    height: 3px;
+  }
+
+  .hub-chip {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .hub-back {
+    width: 44px;
+    height: 36px;
+  }
+
+  .hub-name input {
+    width: 90px;
+  }
+
+  .loading:not(.big) {
+    top: auto;
+    bottom: 10px;
+    left: 50%;
+    font-size: 12px;
+  }
+
+  /* Bosh ekran plitkalari */
+  .hub-tiles,
+  .hub-tabs,
+  .hub-lobby {
+    top: 4px;
+    left: 20px;
+    gap: 6px;
+  }
+
+  .hub-tiles {
+    width: min(320px, 44%);
+  }
+
+  .hub-tile-inner {
+    gap: 12px;
+    padding: 7px 16px;
+  }
+
+  .hub-tile-icon {
+    font-size: 22px;
+  }
+
+  .hub-tile-text strong {
+    font-size: 17px;
+  }
+
+  .hub-tile-text small {
+    font-size: 11px;
+  }
+
+  .hub-link {
+    padding: 0;
+  }
+
+  .hub-quick {
+    right: 20px;
+    bottom: 16px;
+    gap: 6px;
+  }
+
+  .hub-quick-car strong {
+    font-size: 30px;
+  }
+
+  .hub-quick-info span {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+
+  .hub-go {
+    min-width: 160px;
+    padding: 10px 26px;
+    font-size: 19px !important;
+  }
+
+  /* O'ng karta: pastki qator (karusel/trassalar) bilan to'qnashmasin, sig'masa aylantiriladi */
+  .hub-card {
+    top: 4px;
+    right: 20px;
+    gap: 8px;
+    width: min(300px, 44%);
+    max-height: calc(100% - 196px);
+    padding: 10px 14px;
+    overscroll-behavior: contain;
+  }
+
+  .hub-settings,
+  .hub-card.hub-garage {
+    max-height: calc(100% - 12px);
+  }
+
+  .hub-card.hub-garage {
+    width: min(380px, 52%);
+  }
+
+  /* Mashina tanlash: kartada faqat nom, tezlik va garaj tugmasi */
+  .hub-car-card .hub-stats {
+    display: none;
+  }
+
+  .hub-car-name {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .hub-speed strong {
+    font-size: 22px;
+  }
+
+  .hub-bottom {
+    gap: 6px;
+    padding: 0 20px 10px;
+  }
+
+  .hub-carousel {
+    gap: 8px;
+    padding: 8px 4px 6px;
+  }
+
+  .hub-car {
+    flex-basis: 84px;
+    padding: 6px 4px 4px;
+    font-size: 11px;
+  }
+
+  .hub-car svg {
+    width: 62px;
+  }
+
+  .hub-hint {
+    font-size: 12px;
+  }
+
+  /* Trassalar — bitta gorizontal aylantiriladigan qator */
+  .hub-tracks {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 168px;
+    gap: 10px;
+    padding: 8px 12px 6px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    pointer-events: auto;
+    overscroll-behavior: contain;
+  }
+
+  .hub-track {
+    min-height: 72px;
+    padding: 8px 12px;
+    scroll-snap-align: start;
+  }
+
+  .hub-track strong {
+    font-size: 15px;
+  }
+
+  .hub-track small {
+    font-size: 10px;
+  }
+
+  .hub-track-icon {
+    top: 6px;
+    right: 10px;
+    font-size: 22px;
+  }
+
+  /* Garaj: bo'limlar ixcham, xulosa faqat nom + progress */
+  .hub-tab-inner {
+    padding: 6px 14px;
+  }
+
+  .hub-garage-summary {
+    left: 20px;
+    bottom: 10px;
+    width: min(300px, 40%);
+  }
+
+  .hub-garage-summary > strong {
+    font-size: 24px;
+  }
+
+  .hub-garage-summary .hub-kicker,
+  .hub-garage-meta {
+    display: none;
+  }
+
+  /* Lobby */
+  .hub-lobby {
+    max-height: calc(100% - 196px);
+  }
+
+  .hub-code {
+    padding: 8px 18px;
+  }
+
+  /* Natijalar */
+  .hub-res {
+    gap: 10px;
+    padding-block: 12px;
+  }
+
+  .hub-res-title {
+    font-size: 44px;
+  }
+
+  .countdown {
+    font-size: 96px;
+  }
+
+  .finish-banner {
+    top: 12%;
+    padding: 8px 24px;
+  }
+
+  .finish-banner strong {
+    font-size: 22px;
+  }
+}
+
+/* Sensorli ekranda :hover barmoq qo'yib yuborilgandan keyin ham "yopishib" qoladi — siljish effektlari o'chiriladi */
+@media (hover: none) {
+  .hub-tile:hover:not(:disabled) {
+    transform: skewX(var(--hub-skew));
+  }
+
+  .hub-car:hover:not(.active),
+  .hub-track:hover:not(.active) {
+    transform: none;
+  }
+
+  .hub-track:hover:not(.active) {
+    transform: skewX(var(--hub-skew));
+    opacity: 0.75;
+  }
+
+  .hub-go:hover:not(:disabled) {
+    transform: skewX(var(--hub-skew));
+  }
+
+  .hub-tile:active:not(:disabled),
+  .hub-car:active,
+  .hub-track:active {
+    filter: brightness(1.25);
   }
 }

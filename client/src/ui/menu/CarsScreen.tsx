@@ -4,6 +4,7 @@ import { useCarChoice } from '../../store/carChoice';
 import { useGarage } from '../../store/garage';
 import { preloadCar } from '../../game/car/carGeometry';
 import { CarIcon } from '../CarIcon';
+import { isTouch } from '../../store/device';
 
 /** Kartadagi ko'rsatkichlar — garajdagi upgrade darajalaridan (fizika hamma mashinada bir xil) */
 const STATS: { id: UpgradeId; label: string }[] = [
@@ -104,7 +105,9 @@ export function CarsScreen({
           ))}
         </div>
         <div className="hub-footer">
-          <span className="hub-hint">←/→ — mashina · sichqoncha bilan aylantiring</span>
+          <span className="hub-hint">
+            {isTouch ? "Ro'yxatni suring · barmoq bilan aylantiring" : '←/→ — mashina · sichqoncha bilan aylantiring'}
+          </span>
           <button className="hub-go" onClick={onNext}>
             <span>Davom ▶</span>
           </button>
