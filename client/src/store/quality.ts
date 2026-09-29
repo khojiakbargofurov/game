@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isTouch } from './device';
 
 /**
  * Grafika sifati darajalari. Menyuda tanlanadi (localStorage'da saqlanadi) yoki `?quality=low|medium|high`.
@@ -26,6 +27,20 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
   high: { dpr: [1, 1.75], antialias: true, shadows: true, shadowMapSize: 2048, sceneryDensity: 1, fogFar: 260, weatherParticles: 2800 },
 };
 
+/**
+ * Telefon ekrani CSS pikselda kichik (~850×390), lekin DPR 2–3 — desktop oralig'i (1x atrofida) unda juda xira.
+ * Sensorli qurilmada piksel zichligi yuqoriroq, lekin qurilmaning o'z DPR'idan oshmaydi.
+ */
+const TOUCH_DPR: Record<Quality, [number, number]> = { low: [1, 1.25], medium: [1.25, 1.75], high: [1.5, 2.25] };
+
+if (isTouch) {
+  const cap = window.devicePixelRatio || 1;
+  for (const q of Object.keys(TOUCH_DPR) as Quality[]) {
+    const [min, max] = TOUCH_DPR[q];
+    QUALITY_PRESETS[q].dpr = [Math.min(min, cap), Math.min(max, cap)];
+  }
+}
+
 export const QUALITY_LABELS: Record<Quality, string> = { low: 'Past', medium: "O'rta", high: 'Yuqori' };
 
 const KEY = 'racer:quality';
@@ -40,10 +55,10 @@ function initialQuality(): Quality {
   } catch {
     // e'tiborsiz
   }
-  // Oddiy evristika: telefon/planshet — past, kam yadroli kompyuter — o'rta sifatdan boshlash
+  // Oddiy evristika: telefon/planshet va kam yadroli kompyuter — o'rta sifatdan boshlash
+  // (sekin qurilmada Scene FPS past qolsa o'zi bir daraja pasaytiradi)
   const cores = navigator.hardwareConcurrency ?? 4;
-  if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches) return 'low';
-  return cores <= 4 ? 'medium' : 'high';
+  return cores <= 4 || isTouch ? 'medium' : 'high';
 }
 
 interface QualityState {

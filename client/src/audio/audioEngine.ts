@@ -21,7 +21,43 @@ function readMuted(): boolean {
   }
 }
 
+/**
+ * iOS: Web Audio telefonning jim rejim (silent) tugmasiga bo'ysunadi — o'yin ovozi umuman chiqmaydi.
+ * Safari 16.4+ da audioSession 'playback' — musiqa ilovasidek jim rejimda ham chalinadi;
+ * eski versiyalar uchun — jim <audio> elementi chalinib turadi (u ham sessiyani playback'ga o'tkazadi).
+ */
+const nav = navigator as Navigator & { audioSession?: { type: string } };
+if (nav.audioSession) nav.audioSession.type = 'playback';
+
+let silentEl: HTMLAudioElement | null = null;
+function playSilentElement() {
+  if (nav.audioSession || silentEl) return;
+  // 0.1s jim WAV (8 kHz, 8-bit mono)
+  const samples = 800;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF');
+  view.setUint32(4, 36 + samples, true);
+  str(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 8000, true);
+  view.setUint32(28, 8000, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  str(36, 'data');
+  view.setUint32(40, samples, true);
+  bytes.fill(128, 44);
+  silentEl = new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' })));
+  silentEl.loop = true;
+  silentEl.setAttribute('playsinline', '');
+  silentEl.play().catch(() => (silentEl = null)); // keyingi bosishda qayta uriniladi
+}
+
 function unlock() {
+  playSilentElement();
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
@@ -33,17 +69,24 @@ function unlock() {
     master.connect(comp).connect(ctx.destination);
     readyCallbacks.splice(0).forEach((cb) => cb(ctx!, master!));
   }
-  if (ctx.state === 'suspended') void ctx.resume();
+  // iOS'da holat 'interrupted' ham bo'ladi (qo'ng'iroq, fonga o'tish) — faqat 'suspended' emas
+  if (ctx.state !== 'running') void ctx.resume();
 }
 
 window.addEventListener('pointerdown', unlock);
 // iOS Safari AudioContext'ni faqat touchend'dan keyin ochadi (pointerdown/touchstart yetarli emas)
 window.addEventListener('touchend', unlock);
+window.addEventListener('click', unlock);
 // Ilova fonga o'tsa ovoz to'xtaydi (telefon batareyasi), qaytganda davom etadi
 document.addEventListener('visibilitychange', () => {
   if (!ctx) return;
-  if (document.hidden) void ctx.suspend();
-  else void ctx.resume();
+  if (document.hidden) {
+    void ctx.suspend();
+    silentEl?.pause();
+  } else {
+    void ctx.resume();
+    void silentEl?.play().catch(() => {});
+  }
 });
 window.addEventListener('keydown', (e) => {
   unlock();
