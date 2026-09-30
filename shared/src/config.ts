@@ -40,7 +40,7 @@ export const CARS: readonly CarDef[] = [
   // Giperkarlar (Sketchfab, baland poligonli — import vositasi ~15–25 ming uchburchakka soddalashtirgan)
   { id: 'f1', label: 'F1', model: 'f1.glb', color: '#c8102e', icon: 'sport' },
   { id: 'f1lm', label: 'F1 LM', model: 'f1lm.glb', color: '#f2f2f2', icon: 'sport' },
-  { id: 'pista', label: '488 Pista', model: 'pista.glb', color: '#3f9b4a', icon: 'sport' },
+  { id: 'pista', label: '488 Pista', model: 'pista.glb', color: '#c8141e', icon: 'sport' },
   { id: 'sf90', label: 'SF90 XX', model: 'sf90.glb', color: '#d11a1a', icon: 'sport' },
   { id: 'bolide', label: 'Bolide', model: 'bolide.glb', color: '#1d3f8c', icon: 'sport' },
   { id: 'tourbillon', label: 'Tourbillon', model: 'tourbillon.glb', color: '#2a4a8a', icon: 'sport' },
