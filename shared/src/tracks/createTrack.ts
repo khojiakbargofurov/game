@@ -1,6 +1,13 @@
 import { WORLD } from '../config';
 import { fbm2D } from '../noise';
-import { buildRoute, nearestOnRouteOf, routeFrameAt, yawOf, type NearestResult, type RouteFrame } from '../route';
+import {
+  buildRoute,
+  nearestOnRouteOf,
+  routeFrameAt,
+  yawOf,
+  type NearestResult,
+  type RouteFrame,
+} from '../route';
 import type { Checkpoint, Pickup, TerrainSample, Track, TrackDef, ZoneName, ZoneWeights } from './types';
 import { TILE_ROAD_HALF, buildTileLayout } from './tiles';
 

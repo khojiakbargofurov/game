@@ -23,6 +23,8 @@ export interface Route {
 
 /** Namunalar orasidagi masofa (m) */
 export const ROUTE_STEP = 2;
+/** Ochiq trassada asfalt startdan oldin va marradan keyin ko'rinadigan/fizik davom etadigan masofa */
+export const ROAD_END_EXTENSION = 80;
 
 function catmullRom(p0: number, p1: number, p2: number, p3: number, t: number) {
   const t2 = t * t;
@@ -125,7 +127,24 @@ export function routeFrameAt(
 ): RouteFrame {
   // Halqada `s` o'raladi (manfiy yoki uzunlikdan katta bo'lishi mumkin — masalan, start panjarasi chiziq ortida)
   const L = ROUTE.length;
-  const sc = ROUTE.closed ? ((s % L) + L) % L : Math.min(Math.max(s, 0), L);
+  const sc = ROUTE.closed ? ((s % L) + L) % L : Math.min(Math.max(s, -ROAD_END_EXTENSION), L + ROAD_END_EXTENSION);
+  // Ochiq yo'lning ko'rinadigan davomi matematik marshrutda ham davom etadi. Shunda minimap,
+  // autopilot va yiqilib ketishni tekshirish asfalt hali bor joyda endpointga "yopishib" qolmaydi.
+  if (!ROUTE.closed && (sc < 0 || sc > L)) {
+    const start = sc < 0;
+    const i = start ? 0 : ROUTE.count - 1;
+    const j = start ? 1 : ROUTE.count - 2;
+    const delta = start ? sc : sc - L;
+    const run = Math.hypot(ROUTE.xs[i] - ROUTE.xs[j], ROUTE.zs[i] - ROUTE.zs[j]) || 1;
+    const grade = start ? (ROUTE.ys[1] - ROUTE.ys[0]) / run : (ROUTE.ys[i] - ROUTE.ys[j]) / run;
+    out.s = sc;
+    out.x = ROUTE.xs[i] + ROUTE.txs[i] * delta;
+    out.y = ROUTE.ys[i] + grade * delta;
+    out.z = ROUTE.zs[i] + ROUTE.tzs[i] * delta;
+    out.tx = ROUTE.txs[i];
+    out.tz = ROUTE.tzs[i];
+    return out;
+  }
   const f = sc / ROUTE_STEP;
   const i = Math.min(Math.floor(f), ROUTE.count - 2);
   const t = f - i;
@@ -228,5 +247,28 @@ export function nearestOnRouteOf(
   // Chap tomon vektori: up × tangent = (tz, 0, -tx)
   out.lateral = Math.sign((x - px) * tz - (z - pz) * tx) * out.dist;
   out.roadY = ys[seg] + (ys[i2] - ys[seg]) * t;
+
+  // Ochiq trassaning vizual/fizik davomi ham eng yaqin marshrut sifatida tanlansin.
+  // `s` start oldida manfiy, marradan keyin ROUTE.length dan katta bo'lishi mumkin.
+  if (!ROUTE.closed) {
+    const considerEnd = (i: number, start: boolean) => {
+      const dx = x - xs[i];
+      const dz = z - zs[i];
+      const along = dx * ROUTE.txs[i] + dz * ROUTE.tzs[i];
+      if ((start ? along >= 0 : along <= 0) || Math.abs(along) > ROAD_END_EXTENSION) return;
+      const lateral = dx * ROUTE.tzs[i] - dz * ROUTE.txs[i];
+      const d = Math.abs(lateral);
+      if (d >= out.dist) return;
+      const j = start ? 1 : count - 2;
+      const run = Math.hypot(xs[i] - xs[j], zs[i] - zs[j]) || 1;
+      const grade = start ? (ys[1] - ys[0]) / run : (ys[i] - ys[j]) / run;
+      out.s = start ? along : ROUTE.length + along;
+      out.dist = d;
+      out.lateral = Math.sign(lateral) * d;
+      out.roadY = ys[i] + grade * along;
+    };
+    considerEnd(0, true);
+    considerEnd(count - 1, false);
+  }
   return out;
 }

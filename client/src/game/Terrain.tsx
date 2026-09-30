@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { RigidBody, TrimeshCollider } from '@react-three/rapier';
 import { BufferAttribute, BufferGeometry, Color, MeshStandardMaterial, PlaneGeometry, Vector3 } from 'three';
 import { COLORS, WORLD, type Palette, type TerrainSample, type Track } from '@game/shared';
-import { usePalette, useTrack } from '../store/raceSettings';
+import { useActiveSettings, usePalette, useTrack } from '../store/raceSettings';
+import { LakeWater } from './LakeWater';
 
 /** Har bir uchi uchun rang tanlashda kerak bo'ladigan ma'lumotlar */
 interface VertexInfo {
@@ -114,7 +115,7 @@ const CHUNKS = 5;
  * Indekssiz (flat shading) vizual geometriya: har bir uchburchak bitta rangda.
  * Uchburchaklar markaziga qarab CHUNKS×CHUNKS bo'lakka taqsimlanadi.
  */
-function buildVisualChunks(base: PlaneGeometry, info: VertexInfo, C: Colors): BufferGeometry[] {
+function buildVisualChunks(base: PlaneGeometry, info: VertexInfo, C: Colors, snowing: boolean): BufferGeometry[] {
   const src = base.attributes.position as BufferAttribute;
   const index = base.index!.array;
   const half = WORLD.TERRAIN_SIZE / 2;
@@ -157,6 +158,12 @@ function buildVisualChunks(base: PlaneGeometry, info: VertexInfo, C: Colors): Bu
       slope,
       col,
     );
+    if (snowing && slope < 0.68 && avg(info.above) > -8) {
+      const offRoad = avg(info.offRoad);
+      const city = avg(info.city);
+      const cover = city > 0.5 ? 0.42 : Math.min(0.86, 0.58 + Math.max(0, offRoad) * 0.018 + (1 - slope) * 0.12);
+      col.lerp(C.snow, cover);
+    }
     const jitter = 0.94 + ((f * 7919) % 13) / 100; // bir xil ko'rinmasligi uchun
     const k = chunkOf((a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3);
     positions[k].push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
@@ -178,14 +185,15 @@ const terrainMaterial = new MeshStandardMaterial({ vertexColors: true, flatShadi
 export function Terrain() {
   const track = useTrack();
   const palette = usePalette();
+  const { weather } = useActiveSettings();
   const { chunks, vertices, indices } = useMemo(() => {
     const { geo, info } = buildHeightGeometry(track);
     return {
-      chunks: buildVisualChunks(geo, info, colorsOf(palette)),
+      chunks: buildVisualChunks(geo, info, colorsOf(palette), weather === 'snow'),
       vertices: geo.attributes.position.array as Float32Array,
       indices: geo.index!.array as Uint32Array,
     };
-  }, [track, palette]);
+  }, [track, palette, weather]);
 
   return (
     <RigidBody type="fixed" colliders={false}>
@@ -194,11 +202,8 @@ export function Terrain() {
         <mesh key={i} geometry={geometry} receiveShadow material={terrainMaterial} />
       ))}
       {track.LAKE && (
-        // Ko'l yuzasi — faqat vizual (suv ostidagi relyef collider'i bor, yo'l suvga tushmaydi)
-        <mesh position={[track.LAKE.x, track.LAKE.y, track.LAKE.z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <circleGeometry args={[track.LAKE.radius + 5, 40]} />
-          <meshStandardMaterial color={palette.water} roughness={0.2} metalness={0.1} transparent opacity={0.88} />
-        </mesh>
+        // Suv faqat vizual; pastdagi relyef collider'i saqlanadi.
+        <LakeWater lake={track.LAKE} palette={palette} />
       )}
     </RigidBody>
   );

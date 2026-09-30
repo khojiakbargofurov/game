@@ -1,6 +1,6 @@
 import { createRng, type TerrainSample, type Track } from '@game/shared';
 
-export type Kind = 'pine' | 'broadleaf' | 'rock' | 'redRock';
+export type Kind = 'pine' | 'broadleaf' | 'rock' | 'redRock' | 'shrub' | 'reed';
 
 export interface Placement {
   kind: Kind;
@@ -47,11 +47,19 @@ export function generatePlacements(track: Track): Placement[] {
 
     const r = rng();
     let kind: Kind | null = null;
-    if (t.forest > 0.5) kind = r < 0.78 ? 'pine' : r < 0.93 ? 'broadleaf' : 'rock';
+    if (t.forest > 0.5) {
+      // Tog'da qarag'ay va tosh, ko'l bo'yida esa bargli daraxt va past butalar ko'proq.
+      // Yo'lga yaqin past o'simliklar bir xil baland daraxtlar qatorini buzib, manzarani tabiiyroq qiladi.
+      const nearRoad = clearance < 24;
+      if (nearRoad && r < 0.2) kind = 'shrub';
+      else if (track.id === 'lake') kind = r < 0.55 ? 'pine' : r < 0.87 ? 'broadleaf' : r < 0.96 ? 'shrub' : 'rock';
+      else if (track.id === 'mountain') kind = r < 0.72 ? 'pine' : r < 0.84 ? 'broadleaf' : r < 0.94 ? 'shrub' : 'rock';
+      else kind = r < 0.72 ? 'pine' : r < 0.89 ? 'broadleaf' : r < 0.96 ? 'shrub' : 'rock';
+    }
     else if (t.canyon > 0.5) {
       // Kanyonda asosan qoyalar; daraxtlar faqat devor tepasida, siyrak
       const onTop = t.height - t.roadY > 12;
-      kind = r < 0.55 ? 'redRock' : onTop && r < 0.7 ? 'broadleaf' : null;
+      kind = r < 0.55 ? 'redRock' : onTop && r < 0.68 ? 'pine' : clearance < 25 && r < 0.76 ? 'shrub' : null;
     } else if (t.circuit > 0.5) {
       // F1 halqasi: keng xavfsizlik zonasi (run-off) bo'sh, daraxtlar faqat uzoqda va siyrak.
       // Plitkali trassada yaqin atrof (paddok, tribunalar, kit daraxtlari) — KitTrack'da
@@ -67,17 +75,41 @@ export function generatePlacements(track: Track): Placement[] {
     if (!kind) continue;
 
     const isRock = kind === 'rock' || kind === 'redRock';
+    const isShrub = kind === 'shrub';
     out.push({
       kind,
       x,
       y: t.height,
       z,
-      scale: isRock ? 0.7 + rng() * 2.2 : 0.8 + rng() * 0.8,
+      scale: isRock ? 0.7 + rng() * 2.2 : isShrub ? 0.45 + rng() * 0.75 : 0.8 + rng() * 0.8,
       rotation: rng() * Math.PI * 2,
-      solid: clearance < SOLID_DISTANCE,
+      solid: !isShrub && clearance < SOLID_DISTANCE,
       tint: rng(),
       lod: rng(),
     });
+  }
+
+  // Ko'l suvining tekis doirasi quruqlikka keskin ulanib qolmasin: qirg'oq bo'ylab siyrak qamish halqasi.
+  if (LAKE) {
+    for (let i = 0; i < 220; i++) {
+      const angle = rng() * Math.PI * 2;
+      const radius = LAKE.radius - 2 + rng() * 12;
+      const x = LAKE.x + Math.cos(angle) * radius;
+      const z = LAKE.z + Math.sin(angle) * radius;
+      sampleTerrain(x, z, t);
+      if (t.dist - t.halfWidth < 5) continue;
+      out.push({
+        kind: 'reed',
+        x,
+        y: Math.max(t.height, LAKE.y - 0.12),
+        z,
+        scale: 0.65 + rng() * 0.9,
+        rotation: rng() * Math.PI * 2,
+        solid: false,
+        tint: rng(),
+        lod: rng(),
+      });
+    }
   }
   return out;
 }

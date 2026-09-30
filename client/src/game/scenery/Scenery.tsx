@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { BallCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import {
   Color,
@@ -27,8 +28,28 @@ interface Part {
   colors: string[];
 }
 
-function InstancedPart({ items, part }: { items: Placement[]; part: Part }) {
+function InstancedPart({
+  items,
+  part,
+  center,
+  enabled,
+  far,
+}: {
+  items: Placement[];
+  part: Part;
+  center: [number, number];
+  enabled: boolean;
+  far: number;
+}) {
   const ref = useRef<InstancedMesh>(null);
+  const fade = useRef(0);
+  const localMaterial = useMemo(() => {
+    const m = material.clone();
+    m.transparent = true;
+    m.opacity = 0;
+    return m;
+  }, []);
+  useEffect(() => () => localMaterial.dispose(), [localMaterial]);
 
   useLayoutEffect(() => {
     const mesh = ref.current!;
@@ -52,8 +73,21 @@ function InstancedPart({ items, part }: { items: Placement[]; part: Part }) {
     mesh.computeBoundingSphere();
   }, [items, part]);
 
+  useFrame(({ camera }, dt) => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const dist = Math.hypot(camera.position.x - center[0], camera.position.z - center[1]);
+    const start = far - 52;
+    const x = Math.min(1, Math.max(0, (dist - start) / Math.max(1, far - start)));
+    const distanceFade = 1 - x * x * (3 - 2 * x);
+    const target = enabled ? distanceFade : 0;
+    fade.current += (target - fade.current) * (1 - Math.exp(-dt * 3.8));
+    localMaterial.opacity = fade.current;
+    mesh.visible = fade.current > 0.008;
+  });
+
   return (
-    <instancedMesh ref={ref} args={[part.geometry, material, items.length]} castShadow receiveShadow />
+    <instancedMesh ref={ref} args={[part.geometry, localMaterial, items.length]} castShadow receiveShadow />
   );
 }
 
@@ -68,6 +102,8 @@ const GEO = {
   broadTrunk: new CylinderGeometry(0.2, 0.3, 2.4, 5, 1, true),
   crown: new IcosahedronGeometry(1.6, 0),
   rock: new DodecahedronGeometry(1, 0),
+  shrub: new IcosahedronGeometry(0.8, 0),
+  reed: new CylinderGeometry(0.035, 0.055, 1.5, 5, 1, true),
 };
 
 const partsCache = new WeakMap<Palette, Record<Kind, Part[]>>();
@@ -88,6 +124,12 @@ function partsFor(c: Palette): Record<Kind, Part[]> {
       ],
       rock: [{ geometry: GEO.rock, offset: [0, 0.2, 0], stretch: [1, 0.7, 1.1], colors: [c.rock, '#8c7a6c', '#a8988a'] }],
       redRock: [{ geometry: GEO.rock, offset: [0, 0.2, 0], stretch: [1.1, 0.8, 1], colors: [c.canyonA, c.canyonB, c.rock] }],
+      shrub: [{ geometry: GEO.shrub, offset: [0, 0.5, 0], colors: [c.leaves, c.leavesLight, c.grassDark] }],
+      reed: [
+        { geometry: GEO.reed, offset: [-0.16, 0.75, 0], colors: [c.grassDark, c.dirt] },
+        { geometry: GEO.reed, offset: [0.03, 0.9, 0.12], colors: [c.grass, c.grassDark] },
+        { geometry: GEO.reed, offset: [0.18, 0.65, -0.08], colors: [c.dirt, c.grassDark] },
+      ],
     };
     partsCache.set(c, parts);
   }
@@ -97,19 +139,33 @@ function partsFor(c: Palette): Record<Kind, Part[]> {
 /** Manzara bo'laklari o'lchami (m) — har bir bo'lak alohida frustum culling qilinadi */
 const CHUNK = 150;
 type Kind = Placement['kind'];
-const KINDS: Kind[] = ['pine', 'broadleaf', 'rock', 'redRock'];
+const KINDS: Kind[] = ['pine', 'broadleaf', 'rock', 'redRock', 'shrub', 'reed'];
 
-/** Joylashuvlarni bo'laklarga va turlarga ajratish */
-function chunkify(items: Placement[]): Map<string, Record<Kind, Placement[]>> {
-  const chunks = new Map<string, Record<Kind, Placement[]>>();
+interface ChunkGroup {
+  center: [number, number];
+  /** Shu zichlikka yetganda guruh ko'rinadi: low=.35, medium=.7, high=1 */
+  tier: number;
+  byKind: Record<Kind, Placement[]>;
+}
+
+/** Joylashuvlarni bo'lak, sifat qatlami va turga ajratish — qatlamlar opacity bilan silliq almashadi. */
+function chunkify(items: Placement[]): Map<string, ChunkGroup> {
+  const chunks = new Map<string, ChunkGroup>();
   for (const p of items) {
-    const key = `${Math.floor(p.x / CHUNK)},${Math.floor(p.z / CHUNK)}`;
+    const cx = Math.floor(p.x / CHUNK);
+    const cz = Math.floor(p.z / CHUNK);
+    const tier = p.solid || p.lod < 0.35 ? 0.35 : p.lod < 0.7 ? 0.7 : 1;
+    const key = `${cx},${cz},${tier}`;
     let c = chunks.get(key);
     if (!c) {
-      c = { pine: [], broadleaf: [], rock: [], redRock: [] };
+      c = {
+        center: [(cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK],
+        tier,
+        byKind: { pine: [], broadleaf: [], rock: [], redRock: [], shrub: [], reed: [] },
+      };
       chunks.set(key, c);
     }
-    c[p.kind].push(p);
+    c.byKind[p.kind].push(p);
   }
   return chunks;
 }
@@ -120,19 +176,31 @@ function chunkify(items: Placement[]): Map<string, Record<Kind, Placement[]>> {
  * Yo'lga yaqin daraxt/qoyalarga fizik collider qo'shiladi va ular sifat darajasidan qat'i nazar doim ko'rinadi.
  */
 export function Scenery() {
-  const density = usePreset().sceneryDensity;
+  const preset = usePreset();
+  const density = preset.sceneryDensity;
   const track = useTrack();
   const PARTS = partsFor(usePalette());
   const all = useMemo(() => generatePlacements(track), [track]);
-  const chunks = useMemo(() => chunkify(all.filter((p) => p.solid || p.lod < density)), [all, density]);
+  const chunks = useMemo(() => chunkify(all), [all]);
   const solids = useMemo(() => all.filter((p) => p.solid), [all]);
 
   return (
     <>
-      {[...chunks.entries()].map(([key, byKind]) =>
+      {[...chunks.entries()].map(([key, chunk]) =>
         KINDS.map((kind) =>
-          byKind[kind].length
-            ? PARTS[kind].map((part, i) => <InstancedPart key={`${key}-${kind}-${i}`} items={byKind[kind]} part={part} />)
+          chunk.byKind[kind].length
+            ? PARTS[kind].map((part, i) => (
+                <InstancedPart
+                  key={`${key}-${kind}-${i}`}
+                  items={chunk.byKind[kind]}
+                  part={part}
+                  center={chunk.center}
+                  enabled={density + 1e-4 >= chunk.tier}
+                  // Markaz bo'yicha cullingda 150 m chunkning yaqin qirrasi 75 m oldin keladi;
+                  // qo'shimcha zaxira fade'ni aynan tuman ichida yashiradi.
+                  far={preset.fogFar + CHUNK * 0.55}
+                />
+              ))
             : null,
         ),
       )}

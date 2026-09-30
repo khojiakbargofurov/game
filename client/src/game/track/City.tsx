@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { CuboidCollider, RigidBody } from '@react-three/rapier';
+import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -12,11 +12,14 @@ import {
   MeshStandardMaterial,
   Object3D,
   PlaneGeometry,
+  SphereGeometry,
   type InstancedMesh,
 } from 'three';
 import { ROUTE_STEP, createRng, type Track } from '@game/shared';
 import { usePalette, useTrack } from '../../store/raceSettings';
-import { BAY, FLOOR, WINDOW_CELLS, facadeTexture, glowTexture, neonRect, neonTexture, windowsTexture } from './cityTextures';
+import { withCarEnv } from '../car/carEnv';
+import { BAY, FLOOR, WINDOW_CELLS, facadeTexture, glassTexture, glowTexture, neonRect, neonTexture, windowsTexture } from './cityTextures';
+import { CityStreetDetails } from './cityStreetDetails';
 
 /** Yo'l cheti (Road.tsx yelkasi) dan keyin trotuar: boshlanishi va kengligi (yo'l chetidan, m), balandligi */
 const WALK_FROM = 0.9;
@@ -31,8 +34,11 @@ const LAMP_OUT = 1.8;
 const LAMP_H = 7.5;
 const LAMP_ARM = 1.8;
 
-const FACADES = ['#5d6580', '#4c5268', '#6a5e76', '#52606f', '#707585', '#464c5e'];
+/** Oqartirilgan beton/shisha ranglari: facade teksturasi bilan ko'payganda ham tunda qop-qora bo'lib ketmaydi */
+const FACADES = ['#8792ad', '#737f99', '#9b879f', '#71889b', '#979dab', '#69778f'];
 const NEONS = ['#ff2fa8', '#28e7ff', '#ffd23f', '#7cff5b', '#b44bff', '#ff5a1f', '#ff3b3b'];
+const SHOPS = ['#ffb25f', '#6de7ff', '#ff719f', '#c5f27a', '#fff0b0'];
+const AWNINGS = ['#b82e4b', '#2875a7', '#d09a35', '#477b67', '#76518f'];
 
 interface Building {
   x: number;
@@ -47,6 +53,8 @@ interface Building {
   color: string;
   u: number;
   v: number;
+  /** 0 slab, 1 podium+tower, 2 setback, 3 twin-wing */
+  style: 0 | 1 | 2 | 3;
 }
 
 /** Tekis to'rtburchaklar yig'uvchi: pozitsiya, uv, rang */
@@ -128,6 +136,7 @@ function placeBuildings(track: Track): Building[] {
           color: FACADES[Math.floor(rng() * FACADES.length)],
           u: Math.floor(rng() * WINDOW_CELLS) / WINDOW_CELLS,
           v: Math.floor(rng() * WINDOW_CELLS) / WINDOW_CELLS,
+          style: Math.floor(rng() * 4) as Building['style'],
         });
         s += w + 1 + rng() * 4;
       } else {
@@ -146,43 +155,78 @@ function local(b: Building, a: number, dist: number, y: number): number[] {
   return [b.x + s * a + c * dist, b.y + y, b.z + c * a - s * dist];
 }
 
+interface Mass {
+  a: number;
+  d: number;
+  w: number;
+  depth: number;
+  y: number;
+  h: number;
+}
+
+/** Bitta qora quti o'rniga 4 xil bino silueti uchun hajmlar. */
+function masses(b: Building): Mass[] {
+  const full = (y = 0, h = b.h): Mass => ({ a: 0, d: 0, w: b.w, depth: b.d, y, h });
+  if (b.style === 0 || b.h < 18) return [full()];
+  if (b.style === 1) {
+    const podium = Math.min(5.2, b.h * 0.28);
+    return [full(0, podium), { a: 0, d: b.d * 0.07, w: b.w * 0.78, depth: b.d * 0.78, y: podium, h: b.h - podium }];
+  }
+  if (b.style === 2) {
+    const lower = b.h * 0.56;
+    return [full(0, lower), { a: 0, d: b.d * 0.1, w: b.w * 0.68, depth: b.d * 0.7, y: lower, h: b.h - lower }];
+  }
+  const podium = Math.min(5, b.h * 0.25);
+  return [
+    full(0, podium),
+    { a: -b.w * 0.275, d: b.d * 0.08, w: b.w * 0.4, depth: b.d * 0.76, y: podium, h: b.h - podium },
+    { a: b.w * 0.275, d: b.d * 0.08, w: b.w * 0.4, depth: b.d * 0.76, y: podium, h: b.h - podium },
+  ];
+}
+
+function appendMass(q: Quads, b: Building, m: Mass, col: Color, glass = false) {
+  const hw = m.w / 2 + (glass ? 0.035 : 0);
+  const hd = m.depth / 2 + (glass ? 0.035 : 0);
+  const corners = [
+    [m.a - hw, m.d - hd],
+    [m.a + hw, m.d - hd],
+    [m.a + hw, m.d + hd],
+    [m.a - hw, m.d + hd],
+  ];
+  for (let k = 0; k < 4; k++) {
+    const [a0, d0] = corners[k];
+    const [a1, d1] = corners[(k + 1) % 4];
+    const len = Math.hypot(a1 - a0, d1 - d0);
+    const uv: [number, number, number, number] = [b.u, b.v, b.u + len / BAY / WINDOW_CELLS, b.v + m.h / FLOOR / WINDOW_CELLS];
+    q.quad(local(b, a0, d0, m.y), local(b, a1, d1, m.y), local(b, a1, d1, m.y + m.h), local(b, a0, d0, m.y + m.h), uv, col);
+  }
+  if (!glass) {
+    const roof: [number, number, number, number] = [0.001, 0.999, 0.002, 0.998];
+    q.quad(
+      local(b, m.a - hw, m.d - hd, m.y + m.h),
+      local(b, m.a + hw, m.d - hd, m.y + m.h),
+      local(b, m.a + hw, m.d + hd, m.y + m.h),
+      local(b, m.a - hw, m.d + hd, m.y + m.h),
+      roof,
+      col.clone().multiplyScalar(0.7),
+    );
+  }
+}
+
 function buildBuildings(buildings: Building[]) {
   const q = new Quads();
   const col = new Color();
   for (const b of buildings) {
     col.set(b.color);
-    const hw = b.w / 2;
-    const hd = b.d / 2;
-    const corners = [
-      [-hw, -hd],
-      [hw, -hd],
-      [hw, hd],
-      [-hw, hd],
-    ];
-    // 4 devor: har biri tashqariga qaragan; uv — oraliq/qavat kataklari (takrorlanadi)
-    for (let k = 0; k < 4; k++) {
-      const [a0, d0] = corners[k];
-      const [a1, d1] = corners[(k + 1) % 4];
-      const len = Math.hypot(a1 - a0, d1 - d0);
-      const uv: [number, number, number, number] = [
-        b.u,
-        b.v,
-        b.u + len / BAY / WINDOW_CELLS,
-        b.v + b.h / FLOOR / WINDOW_CELLS,
-      ];
-      q.quad(local(b, a0, d0, 0), local(b, a1, d1, 0), local(b, a1, d1, b.h), local(b, a0, d0, b.h), uv, col);
-    }
-    // Tom — teksturaning devor qismi (katakning chap-yuqori burchagi)
-    const roof: [number, number, number, number] = [0.001, 0.999, 0.002, 0.998];
-    q.quad(
-      local(b, -hw, -hd, b.h),
-      local(b, hw, -hd, b.h),
-      local(b, hw, hd, b.h),
-      local(b, -hw, hd, b.h),
-      roof,
-      col.clone().multiplyScalar(0.7),
-    );
+    for (const m of masses(b)) appendMass(q, b, m, col);
   }
+  return q.build();
+}
+
+function buildGlass(buildings: Building[]) {
+  const q = new Quads();
+  const white = new Color('#cde9ff');
+  for (const b of buildings) for (const m of masses(b)) appendMass(q, b, m, white, true);
   return q.build();
 }
 
@@ -218,11 +262,37 @@ function buildSigns(buildings: Building[], seed: number) {
   return q.build();
 }
 
+/** Pastki qavatlardagi yorug' do'kon vitrinalari — ko'cha sathini qorong'i quti bo'lib qolishidan saqlaydi */
+function buildShopfronts(buildings: Building[], seed: number) {
+  const rng = createRng(seed + 31);
+  const q = new Quads();
+  const none: [number, number, number, number] = [0, 0, 0, 0];
+  for (const b of buildings) {
+    if (rng() > 0.72) continue;
+    const width = Math.max(4, b.w - 2.2 - rng() * 3);
+    const a = (rng() - 0.5) * Math.max(0, b.w - width - 1);
+    const front = -b.d / 2 - 0.24;
+    const y0 = 0.55;
+    const y1 = 2.8 + rng() * 1.1;
+    const col = new Color(SHOPS[Math.floor(rng() * SHOPS.length)]);
+    q.quad(
+      local(b, a - width / 2, front, y0),
+      local(b, a + width / 2, front, y0),
+      local(b, a + width / 2, front, y1),
+      local(b, a - width / 2, front, y1),
+      none,
+      col,
+    );
+  }
+  return q.build();
+}
+
 /** Trotuar: ikki tomonda ko'tarilgan beton lenta + bordyur yuzasi */
 function buildSidewalks({ ROUTE, roadHalfWidth }: Track, sidewalk: string) {
   const q = new Quads();
   const top = new Color(sidewalk);
   const curb = top.clone().multiplyScalar(1.15);
+  const tactile = new Color('#d7b833');
   const at = (i: number, off: number, y: number) => [
     ROUTE.xs[i] + ROUTE.tzs[i] * off,
     ROUTE.ys[i] + LIFT + y,
@@ -237,12 +307,18 @@ function buildSidewalks({ ROUTE, roadHalfWidth }: Track, sidewalk: string) {
       const inner1 = side * (h1 + WALK_FROM);
       const outer0 = side * (h0 + WALK_TO);
       const outer1 = side * (h1 + WALK_TO);
+      const tactile0 = inner0 + side * 0.42;
+      const tactile1 = inner1 + side * 0.42;
+      // Har 6 metrda juda yengil rang farqi — trotuar yaxlit plastik lenta emas, beton plitalardek ko'rinadi.
+      const slab = i % 3 === 0 ? top.clone().multiplyScalar(0.94) : top;
       // Tepa (normal yuqoriga): chap tomonda tashqi → ichki, o'ngda aksincha
       if (side > 0) {
-        q.quad(at(i, outer0, CURB), at(i, inner0, CURB), at(i + 1, inner1, CURB), at(i + 1, outer1, CURB), none, top);
+        q.quad(at(i, outer0, CURB), at(i, inner0, CURB), at(i + 1, inner1, CURB), at(i + 1, outer1, CURB), none, slab);
+        q.quad(at(i, tactile0, CURB + 0.012), at(i, inner0, CURB + 0.012), at(i + 1, inner1, CURB + 0.012), at(i + 1, tactile1, CURB + 0.012), none, tactile);
         q.quad(at(i, inner0, CURB), at(i, inner0, -0.05), at(i + 1, inner1, -0.05), at(i + 1, inner1, CURB), none, curb);
       } else {
-        q.quad(at(i, inner0, CURB), at(i, outer0, CURB), at(i + 1, outer1, CURB), at(i + 1, inner1, CURB), none, top);
+        q.quad(at(i, inner0, CURB), at(i, outer0, CURB), at(i + 1, outer1, CURB), at(i + 1, inner1, CURB), none, slab);
+        q.quad(at(i, inner0, CURB + 0.012), at(i, tactile0, CURB + 0.012), at(i + 1, tactile1, CURB + 0.012), at(i + 1, inner1, CURB + 0.012), none, tactile);
         q.quad(at(i, inner0, -0.05), at(i, inner0, CURB), at(i + 1, inner1, CURB), at(i + 1, inner1, -0.05), none, curb);
       }
     }
@@ -258,6 +334,76 @@ interface Lamp {
   yaw: number;
 }
 
+interface Stud {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+}
+
+interface StreetItem {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+}
+
+interface StreetFurniture {
+  bollards: StreetItem[];
+  signals: StreetItem[];
+}
+
+/** Markazdagi sariq chiziq bo'ylab tungi qaytargichlar — uzoqdan burilish shaklini ko'rsatadi */
+function placeStuds({ ROUTE_LENGTH, routeAt }: Track): Stud[] {
+  const out: Stud[] = [];
+  for (let s = 0; s < ROUTE_LENGTH; s += 10) {
+    const f = routeAt(s);
+    for (const side of [1, -1]) {
+      const off = side * 0.3;
+      out.push({ x: f.x + f.tz * off, y: f.y + 0.085, z: f.z - f.tx * off, yaw: Math.atan2(f.tx, f.tz) });
+    }
+  }
+  return out;
+}
+
+/** Trotuar bollardlari va katta burilish/chorrahalar oldidagi svetoforlar */
+function placeStreetFurniture({ ROUTE_LENGTH, roadHalfWidth, routeAt }: Track): StreetFurniture {
+  const bollards: StreetItem[] = [];
+  const signals: StreetItem[] = [];
+  for (const side of [1, -1]) {
+    for (let s = side > 0 ? 7 : 16; s < ROUTE_LENGTH; s += 22) {
+      const f = routeAt(s);
+      const off = side * (roadHalfWidth(s) + 1.35);
+      bollards.push({
+        x: f.x + f.tz * off,
+        y: f.y + LIFT + CURB,
+        z: f.z - f.tx * off,
+        yaw: Math.atan2(f.tx, f.tz),
+      });
+    }
+  }
+
+  let last = -Infinity;
+  for (let s = 20; s < ROUTE_LENGTH; s += 8) {
+    const a = routeAt(s - 10);
+    const b = routeAt(s + 10);
+    const turn = Math.acos(Math.min(1, Math.max(-1, a.tx * b.tx + a.tz * b.tz)));
+    if (turn < 0.32 || s - last < 70) continue;
+    last = s;
+    const stop = routeAt(s - 16);
+    for (const side of [1, -1]) {
+      const off = side * (roadHalfWidth(stop.s) + 1.45);
+      signals.push({
+        x: stop.x + stop.tz * off,
+        y: stop.y + LIFT + CURB,
+        z: stop.z - stop.tx * off,
+        yaw: Math.atan2(stop.tx, stop.tz) + (side > 0 ? Math.PI : 0),
+      });
+    }
+  }
+  return { bollards, signals };
+}
+
 function placeLamps({ ROUTE_LENGTH, roadHalfWidth, routeAt }: Track): Lamp[] {
   const out: Lamp[] = [];
   for (const side of [1, -1]) {
@@ -271,8 +417,22 @@ function placeLamps({ ROUTE_LENGTH, roadHalfWidth, routeAt }: Track): Lamp[] {
   return out;
 }
 
-const facadeMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 });
+const facadeMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.09 });
+const glassMaterial = withCarEnv(
+  new MeshStandardMaterial({
+    vertexColors: true,
+    color: '#8fc9ed',
+    roughness: 0.12,
+    metalness: 0.48,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    side: DoubleSide,
+  }),
+  1.15,
+);
 const signMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, side: DoubleSide, toneMapped: false });
+const shopMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.68, side: DoubleSide, toneMapped: false });
 const sidewalkMaterial = new MeshStandardMaterial({
   vertexColors: true,
   roughness: 0.95,
@@ -282,6 +442,21 @@ const sidewalkMaterial = new MeshStandardMaterial({
 });
 const poleMaterial = new MeshStandardMaterial({ color: '#2b2e35', roughness: 0.6, metalness: 0.4 });
 const headMaterial = new MeshBasicMaterial({ color: '#ffe2b0', toneMapped: false });
+const studMaterial = new MeshBasicMaterial({ color: '#ffd85c', toneMapped: false });
+const bollardMaterial = new MeshStandardMaterial({ color: '#252a31', roughness: 0.42, metalness: 0.55 });
+const bollardCapMaterial = new MeshBasicMaterial({ color: '#b9eaff', toneMapped: false });
+const signalHeadMaterial = new MeshStandardMaterial({ color: '#16191f', roughness: 0.55, metalness: 0.35 });
+// Poyga yo'li ochiq: faqat yashil yonadi, qizil/sariq esa qoramtir linza bo'lib ko'rinadi.
+const signalRed = new MeshStandardMaterial({ color: '#451b22', emissive: '#230308', emissiveIntensity: 0.18, roughness: 0.32 });
+const signalAmber = new MeshStandardMaterial({ color: '#4d3a16', emissive: '#241500', emissiveIntensity: 0.15, roughness: 0.32 });
+const signalGreen = new MeshBasicMaterial({ color: '#40f29a', toneMapped: false });
+const roofMaterial = new MeshStandardMaterial({ color: '#3b414c', roughness: 0.75, metalness: 0.22 });
+const roofCapMaterial = new MeshStandardMaterial({ color: '#646d7d', roughness: 0.82, metalness: 0.12 });
+const awningMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.08 });
+const balconyMaterial = new MeshStandardMaterial({ color: '#697586', roughness: 0.72, metalness: 0.18 });
+const railMaterial = new MeshStandardMaterial({ color: '#252c37', roughness: 0.38, metalness: 0.72 });
+const doorMaterial = withCarEnv(new MeshStandardMaterial({ color: '#19334a', roughness: 0.16, metalness: 0.45 }), 0.9);
+const columnMaterial = new MeshStandardMaterial({ color: '#8f98a5', roughness: 0.68, metalness: 0.18 });
 const poolMaterial = new MeshBasicMaterial({
   color: '#ffb46a',
   transparent: true,
@@ -296,6 +471,14 @@ const GEO = {
   arm: new BoxGeometry(0.12, 0.12, LAMP_ARM),
   head: new BoxGeometry(0.45, 0.14, 0.9),
   pool: new PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+  stud: new BoxGeometry(0.13, 0.035, 0.24),
+  bollard: new CylinderGeometry(0.09, 0.12, 0.9, 6),
+  bollardCap: new CylinderGeometry(0.1, 0.1, 0.08, 6),
+  signalPole: new CylinderGeometry(0.075, 0.1, 5.1, 7),
+  signalHead: new BoxGeometry(0.45, 1.18, 0.34),
+  signalLight: new SphereGeometry(0.105, 8, 6),
+  roofUnit: new BoxGeometry(1, 1, 1),
+  column: new CylinderGeometry(0.22, 0.26, 4, 8),
 };
 
 /** Tungi shahar: trotuarlar, binolar (yonib turgan derazalar), neon lavhalar, fonarlar va yo'ldagi yorug'lik dog'lari */
@@ -311,20 +494,26 @@ function CityImpl({ track }: { track: Track }) {
   const geo = useMemo(
     () => ({
       buildings: buildBuildings(buildings),
+      glass: buildGlass(buildings),
       signs: buildSigns(buildings, track.def.seed),
+      shops: buildShopfronts(buildings, track.def.seed),
       sidewalks: buildSidewalks(track, palette.sidewalk),
     }),
     [buildings, track, palette.sidewalk],
   );
   const lamps = useMemo(() => placeLamps(track), [track]);
+  const studs = useMemo(() => placeStuds(track), [track]);
+  const furniture = useMemo(() => placeStreetFurniture(track), [track]);
 
   // Teksturalar bir marta — materiallarga beriladi
   useMemo(() => {
     facadeMaterial.map = facadeTexture();
     facadeMaterial.emissiveMap = windowsTexture();
     facadeMaterial.emissive = new Color('#ffffff');
-    facadeMaterial.emissiveIntensity = 1.1;
+    facadeMaterial.emissiveIntensity = 1.35;
     facadeMaterial.needsUpdate = true;
+    glassMaterial.map = glassTexture();
+    glassMaterial.needsUpdate = true;
     signMaterial.map = neonTexture();
     signMaterial.needsUpdate = true;
     poolMaterial.map = glowTexture();
@@ -335,15 +524,232 @@ function CityImpl({ track }: { track: Track }) {
     <>
       <mesh geometry={geo.sidewalks} material={sidewalkMaterial} receiveShadow />
       <mesh geometry={geo.buildings} material={facadeMaterial} castShadow receiveShadow />
+      <mesh geometry={geo.glass} material={glassMaterial} renderOrder={1} />
       <mesh geometry={geo.signs} material={signMaterial} />
+      <mesh geometry={geo.shops} material={shopMaterial} renderOrder={1} />
+      <RoofUnits buildings={buildings} />
+      <ArchitecturalDetails buildings={buildings} />
       <Lamps lamps={lamps} />
+      <RoadStuds studs={studs} />
+      <StreetFurniture furniture={furniture} />
+      <CityStreetDetails track={track} />
       <RigidBody type="fixed" colliders={false}>
         {buildings.map((b, i) => (
           <CuboidCollider key={i} args={[b.d / 2, b.h / 2, b.w / 2]} position={[b.x, b.y + b.h / 2, b.z]} rotation={[0, b.yaw, 0]} />
         ))}
+        {lamps.map((l, i) => (
+          <CylinderCollider key={`lamp-${i}`} args={[LAMP_H / 2, 0.16]} position={[l.x, l.y + LAMP_H / 2, l.z]} friction={0.65} />
+        ))}
+        {furniture.bollards.map((p, i) => (
+          <CylinderCollider key={`bollard-${i}`} args={[0.45, 0.13]} position={[p.x, p.y + 0.45, p.z]} friction={0.7} />
+        ))}
+        {furniture.signals.map((p, i) => (
+          <CylinderCollider key={`signal-${i}`} args={[2.55, 0.12]} position={[p.x, p.y + 2.55, p.z]} friction={0.65} />
+        ))}
       </RigidBody>
     </>
   );
+}
+
+interface DetailBox {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  scale: [number, number, number];
+}
+
+function DetailInstances({ items, material, geometry = GEO.roofUnit }: { items: DetailBox[]; material: MeshStandardMaterial; geometry?: BufferGeometry }) {
+  const ref = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const o = new Object3D();
+    items.forEach((p, i) => {
+      o.position.set(p.x, p.y, p.z);
+      o.rotation.set(0, p.yaw, 0);
+      o.scale.set(...p.scale);
+      o.updateMatrix();
+      mesh.setMatrixAt(i, o.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [items]);
+  return <instancedMesh ref={ref} args={[geometry, material, items.length]} castShadow receiveShadow />;
+}
+
+/** Balkon, kirish portali, soyabon va ustunlar fasadni oddiy kuboid ko'rinishidan chiqaradi. */
+function ArchitecturalDetails({ buildings }: { buildings: Building[] }) {
+  const details = useMemo(() => {
+    const slabs: DetailBox[] = [];
+    const rails: DetailBox[] = [];
+    const doors: DetailBox[] = [];
+    const canopies: DetailBox[] = [];
+    const columns: DetailBox[] = [];
+    buildings.forEach((b, bi) => {
+      const front = -b.d / 2 - 0.08;
+      const door = local(b, 0, front - 0.08, 1.55);
+      doors.push({ x: door[0], y: door[1], z: door[2], yaw: b.yaw, scale: [0.18, 3.1, Math.min(4.2, b.w * 0.3)] });
+      const hood = local(b, 0, front - 0.85, 3.45);
+      canopies.push({ x: hood[0], y: hood[1], z: hood[2], yaw: b.yaw, scale: [1.7, 0.16, Math.min(5.5, b.w * 0.4)] });
+
+      if ((b.style === 1 || b.style === 2) && bi % 2 === 0) {
+        for (let y = 7; y < Math.min(b.h - 2, 38); y += 7.2) {
+          const m = masses(b).find((part) => y >= part.y && y <= part.y + part.h) ?? masses(b)[0];
+          const width = Math.min(10, m.w * 0.72);
+          const balcony = local(b, m.a, m.d - m.depth / 2 - 0.72, y);
+          slabs.push({ x: balcony[0], y: balcony[1], z: balcony[2], yaw: b.yaw, scale: [1.4, 0.18, width] });
+          const rail = local(b, m.a, m.d - m.depth / 2 - 1.36, y + 0.65);
+          rails.push({ x: rail[0], y: rail[1], z: rail[2], yaw: b.yaw, scale: [0.08, 1.05, width] });
+        }
+      }
+      if (b.style === 1 || b.style === 3) {
+        for (const side of [-0.34, 0.34]) {
+          const p = local(b, b.w * side, front - 0.48, 2);
+          columns.push({ x: p[0], y: p[1], z: p[2], yaw: b.yaw, scale: [1, 1, 1] });
+        }
+      }
+    });
+    return { slabs, rails, doors, canopies, columns };
+  }, [buildings]);
+  return (
+    <>
+      <DetailInstances items={details.slabs} material={balconyMaterial} />
+      <DetailInstances items={details.rails} material={railMaterial} />
+      <DetailInstances items={details.doors} material={doorMaterial} />
+      <DetailInstances items={details.canopies} material={awningMaterial} />
+      <DetailInstances items={details.columns} material={columnMaterial} geometry={GEO.column} />
+    </>
+  );
+}
+
+/** Tomdagi ventilyatsiya/HVAC bloklari siluetni va yuqoridan ko'rinishni bir xil qutilardan qutqaradi */
+function RoofUnits({ buildings }: { buildings: Building[] }) {
+  const unitRef = useRef<InstancedMesh>(null);
+  const capRef = useRef<InstancedMesh>(null);
+  const awningRef = useRef<InstancedMesh>(null);
+  const units = useMemo(() => buildings.filter((b, i) => b.h > 20 && i % 2 === 0), [buildings]);
+  const awnings = useMemo(() => buildings.filter((b, i) => b.h < 75 && i % 3 !== 0), [buildings]);
+  useLayoutEffect(() => {
+    const o = new Object3D();
+    const unitsMesh = unitRef.current;
+    if (unitsMesh) {
+      units.forEach((b, i) => {
+        const sx = Math.min(4, b.d * 0.18);
+        const sy = 0.8 + (i % 3) * 0.24;
+        const sz = Math.min(5, b.w * 0.2);
+        o.position.set(b.x, b.y + b.h + sy / 2, b.z);
+        o.rotation.set(0, b.yaw, 0);
+        o.scale.set(sx, sy, sz);
+        o.translateZ(((i % 3) - 1) * Math.min(2.5, b.w * 0.12));
+        o.updateMatrix();
+        unitsMesh.setMatrixAt(i, o.matrix);
+      });
+      unitsMesh.instanceMatrix.needsUpdate = true;
+      unitsMesh.computeBoundingSphere();
+    }
+
+    const capsMesh = capRef.current;
+    if (capsMesh) {
+      buildings.forEach((b, i) => {
+        o.position.set(b.x, b.y + b.h + 0.18, b.z);
+        o.rotation.set(0, b.yaw, 0);
+        o.scale.set(b.d + 0.45, 0.36, b.w + 0.45);
+        o.updateMatrix();
+        capsMesh.setMatrixAt(i, o.matrix);
+      });
+      capsMesh.instanceMatrix.needsUpdate = true;
+      capsMesh.computeBoundingSphere();
+    }
+
+    const awningsMesh = awningRef.current;
+    if (awningsMesh) {
+      const palette = AWNINGS.map((c) => new Color(c));
+      awnings.forEach((b, i) => {
+        const p = local(b, 0, -b.d / 2 - 0.62, 3.45);
+        o.position.set(p[0], p[1], p[2]);
+        o.rotation.set(0, b.yaw, 0);
+        o.scale.set(1.25, 0.16, Math.min(13, b.w - 1.4));
+        o.updateMatrix();
+        awningsMesh.setMatrixAt(i, o.matrix);
+        awningsMesh.setColorAt(i, palette[i % palette.length]);
+      });
+      awningsMesh.instanceMatrix.needsUpdate = true;
+      if (awningsMesh.instanceColor) awningsMesh.instanceColor.needsUpdate = true;
+      awningsMesh.computeBoundingSphere();
+    }
+  }, [awnings, buildings, units]);
+  return (
+    <>
+      <instancedMesh ref={capRef} args={[GEO.roofUnit, roofCapMaterial, buildings.length]} castShadow receiveShadow />
+      <instancedMesh ref={unitRef} args={[GEO.roofUnit, roofMaterial, units.length]} castShadow receiveShadow />
+      <instancedMesh ref={awningRef} args={[GEO.roofUnit, awningMaterial, awnings.length]} castShadow receiveShadow />
+    </>
+  );
+}
+
+function StreetFurniture({ furniture }: { furniture: StreetFurniture }) {
+  const refs = {
+    bollard: useRef<InstancedMesh>(null),
+    cap: useRef<InstancedMesh>(null),
+    pole: useRef<InstancedMesh>(null),
+    head: useRef<InstancedMesh>(null),
+    red: useRef<InstancedMesh>(null),
+    amber: useRef<InstancedMesh>(null),
+    green: useRef<InstancedMesh>(null),
+  };
+  useLayoutEffect(() => {
+    const o = new Object3D();
+    const place = (mesh: InstancedMesh | null, items: StreetItem[], adjust: (o: Object3D) => void) => {
+      if (!mesh) return;
+      items.forEach((p, i) => {
+        o.position.set(p.x, p.y, p.z);
+        o.rotation.set(0, p.yaw, 0);
+        o.scale.set(1, 1, 1);
+        adjust(o);
+        o.updateMatrix();
+        mesh.setMatrixAt(i, o.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    };
+    place(refs.bollard.current, furniture.bollards, (o) => o.translateY(0.45));
+    place(refs.cap.current, furniture.bollards, (o) => o.translateY(0.92));
+    place(refs.pole.current, furniture.signals, (o) => o.translateY(2.55));
+    place(refs.head.current, furniture.signals, (o) => o.translateY(4.65));
+    place(refs.red.current, furniture.signals, (o) => o.translateY(4.98).translateZ(-0.19));
+    place(refs.amber.current, furniture.signals, (o) => o.translateY(4.65).translateZ(-0.19));
+    place(refs.green.current, furniture.signals, (o) => o.translateY(4.32).translateZ(-0.19));
+  }, [furniture]);
+  return (
+    <>
+      <instancedMesh ref={refs.bollard} args={[GEO.bollard, bollardMaterial, furniture.bollards.length]} castShadow />
+      <instancedMesh ref={refs.cap} args={[GEO.bollardCap, bollardCapMaterial, furniture.bollards.length]} />
+      <instancedMesh ref={refs.pole} args={[GEO.signalPole, poleMaterial, furniture.signals.length]} castShadow />
+      <instancedMesh ref={refs.head} args={[GEO.signalHead, signalHeadMaterial, furniture.signals.length]} castShadow />
+      <instancedMesh ref={refs.red} args={[GEO.signalLight, signalRed, furniture.signals.length]} />
+      <instancedMesh ref={refs.amber} args={[GEO.signalLight, signalAmber, furniture.signals.length]} />
+      <instancedMesh ref={refs.green} args={[GEO.signalLight, signalGreen, furniture.signals.length]} />
+    </>
+  );
+}
+
+function RoadStuds({ studs }: { studs: Stud[] }) {
+  const ref = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const o = new Object3D();
+    studs.forEach((p, i) => {
+      o.position.set(p.x, p.y, p.z);
+      o.rotation.set(0, p.yaw, 0);
+      o.updateMatrix();
+      mesh.setMatrixAt(i, o.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [studs]);
+  return <instancedMesh ref={ref} args={[GEO.stud, studMaterial, studs.length]} renderOrder={2} />;
 }
 
 /** Fonarlar: ustun, yo'lga cho'zilgan qo'l, yonib turgan chiroq va uning ostidagi yorug'lik dog'i (instanced) */

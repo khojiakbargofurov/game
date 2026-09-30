@@ -32,6 +32,7 @@ function texture(c: HTMLCanvasElement, repeat: boolean) {
 
 let facade: CanvasTexture | null = null;
 let windows: CanvasTexture | null = null;
+let glass: CanvasTexture | null = null;
 
 /** Deraza o'rni katak ichida (chetlari — devor); (0,0) katakning chap-yuqori burchagi doim devor (tom uchun) */
 const pane = (x: number, y: number) => [x * CELL + 5, y * CELL + 6, CELL - 10, CELL - 11] as const;
@@ -39,13 +40,44 @@ const pane = (x: number, y: number) => [x * CELL + 5, y * CELL + 6, CELL - 10, C
 export function facadeTexture() {
   if (facade) return facade;
   const [c, ctx] = canvas(WINDOW_CELLS * CELL, WINDOW_CELLS * CELL);
-  ctx.fillStyle = '#c8c8cc';
+  // Oqartirilgan beton/kompozit panel: bino vertex rangi bilan ko'paytirilganda ham tungi yorug'likni ushlaydi.
+  ctx.fillStyle = '#eceef2';
   ctx.fillRect(0, 0, c.width, c.height);
-  // Qavatlar orasidagi chiziq
-  ctx.fillStyle = '#a2a2a8';
-  for (let y = 0; y < WINDOW_CELLS; y++) ctx.fillRect(0, y * CELL + CELL - 3, c.width, 3);
-  ctx.fillStyle = '#3a3e48';
-  for (let y = 0; y < WINDOW_CELLS; y++) for (let x = 0; x < WINDOW_CELLS; x++) ctx.fillRect(...pane(x, y));
+  // Panel choklari va qavat plitalari
+  ctx.fillStyle = '#b8bdc7';
+  for (let y = 0; y < WINDOW_CELLS; y++) ctx.fillRect(0, y * CELL + CELL - 4, c.width, 4);
+  ctx.fillStyle = '#d3d6dd';
+  for (let x = 0; x < WINDOW_CELLS; x++) ctx.fillRect(x * CELL, 0, 3, c.height);
+  for (let y = 0; y < WINDOW_CELLS; y++) {
+    for (let x = 0; x < WINDOW_CELLS; x++) {
+      const [px, py, w, h] = pane(x, y);
+      // Chuqur oyna o'rni, metall rama va pastki tokcha
+      ctx.fillStyle = '#424b5a';
+      ctx.fillRect(px - 2, py - 2, w + 4, h + 4);
+      ctx.fillStyle = '#242b38';
+      ctx.fillRect(px, py, w, h);
+      // Ichki xona chuqurligi: qorong'i shift/pol va perspektiv yon devorlar.
+      const room = ctx.createLinearGradient(px, py, px, py + h);
+      room.addColorStop(0, 'rgba(4,7,13,0.85)');
+      room.addColorStop(0.28, 'rgba(24,31,43,0.45)');
+      room.addColorStop(0.78, 'rgba(12,17,27,0.28)');
+      room.addColorStop(1, 'rgba(2,4,8,0.8)');
+      ctx.fillStyle = room;
+      ctx.fillRect(px + 1, py + 1, w - 2, h - 2);
+      ctx.strokeStyle = 'rgba(125,145,170,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px + 1, py + 1);
+      ctx.lineTo(px + w * 0.3, py + h * 0.32);
+      ctx.lineTo(px + w * 0.3, py + h * 0.82);
+      ctx.lineTo(px + 1, py + h - 1);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(160,185,210,0.18)';
+      ctx.fillRect(px + 2, py + 2, Math.max(2, w * 0.16), h - 4);
+      ctx.fillStyle = '#aeb3bd';
+      ctx.fillRect(px - 2, py + h + 1, w + 4, 2);
+    }
+  }
   return (facade = texture(c, true));
 }
 
@@ -54,18 +86,26 @@ export function windowsTexture() {
   const rng = createRng(8080);
   const [c, ctx] = canvas(WINDOW_CELLS * CELL, WINDOW_CELLS * CELL);
   // Fon — juda xira ko'k: devorlar tungi shahar yorug'ida biroz ko'rinadi (qop-qora bo'lib qolmaydi)
-  ctx.fillStyle = '#161b2c';
+  ctx.fillStyle = '#111624';
   ctx.fillRect(0, 0, c.width, c.height);
   // O'chiq derazalar — devordan biroz to'qroq oyna
-  ctx.fillStyle = '#0a0d16';
+  ctx.fillStyle = '#070a11';
   for (let y = 0; y < WINDOW_CELLS; y++) for (let x = 0; x < WINDOW_CELLS; x++) ctx.fillRect(...pane(x, y));
   const lit = ['#ffd98a', '#ffe7b3', '#fff4dc', '#cfe3ff', '#ffc46b'];
   for (let y = 0; y < WINDOW_CELLS; y++) {
     for (let x = 0; x < WINDOW_CELLS; x++) {
-      if (rng() < 0.42) continue; // o'chiq deraza
+      if (rng() < 0.48) continue; // o'chiq deraza
       const [px, py, w, h] = pane(x, y);
       ctx.globalAlpha = 0.55 + rng() * 0.45;
       ctx.fillStyle = lit[Math.floor(rng() * lit.length)];
+      ctx.fillRect(px, py, w, h);
+      // Yoritilgan xonada ham shift/pol soyasi va orqa devor chuqurligi saqlanadi.
+      const shade = ctx.createLinearGradient(px, py, px, py + h);
+      shade.addColorStop(0, 'rgba(25,18,12,0.48)');
+      shade.addColorStop(0.22, 'rgba(255,255,255,0)');
+      shade.addColorStop(0.78, 'rgba(255,255,255,0)');
+      shade.addColorStop(1, 'rgba(35,20,8,0.55)');
+      ctx.fillStyle = shade;
       ctx.fillRect(px, py, w, h);
       // Parda/odam soyasi — deraza bir xil ko'rinmasin
       if (rng() < 0.3) {
@@ -77,6 +117,30 @@ export function windowsTexture() {
   }
   ctx.globalAlpha = 1;
   return (windows = texture(c, true));
+}
+
+/** Fasad ustidagi alohida shisha qatlami: envMap aksi + diagonal tungi yorug'lik izi. */
+export function glassTexture() {
+  if (glass) return glass;
+  const [c, ctx] = canvas(WINDOW_CELLS * CELL, WINDOW_CELLS * CELL);
+  ctx.clearRect(0, 0, c.width, c.height);
+  for (let y = 0; y < WINDOW_CELLS; y++) {
+    for (let x = 0; x < WINDOW_CELLS; x++) {
+      const [px, py, w, h] = pane(x, y);
+      const g = ctx.createLinearGradient(px, py + h, px + w, py);
+      g.addColorStop(0, 'rgba(15,31,48,0.18)');
+      g.addColorStop(0.42, 'rgba(65,106,145,0.1)');
+      g.addColorStop(0.52, 'rgba(205,235,255,0.58)');
+      g.addColorStop(0.61, 'rgba(83,139,180,0.16)');
+      g.addColorStop(1, 'rgba(8,19,34,0.24)');
+      ctx.fillStyle = g;
+      ctx.fillRect(px, py, w, h);
+      ctx.strokeStyle = 'rgba(190,225,255,0.26)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, w - 1, h - 1);
+    }
+  }
+  return (glass = texture(c, true));
 }
 
 let neon: CanvasTexture | null = null;
